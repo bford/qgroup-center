@@ -59,13 +59,59 @@ def printweightstrs(weights, strings):
 		print weights[i]
 		printstrs(strings[i])
 
+# Find the end of an f, e, or h token starting at position i in str.
+# Return -1 if no such token starts at position i.
+def break_feh(str, i):
+	if i < len(str) and str[i].isalpha():
+		j = i+1
+		while j < len(str) and str[j].isdigit():
+			j += 1
+		return j
+	return -1
+
+# Invoke function f on each f,e,h token within str.
 def foreach_feh(str, f):
 	for i in range(len(str)):
-		if str[i].isalpha():
-			j = i+1
-			while j < len(str) and str[j].isdigit():
-				j += 1
+		j = break_feh(str, i)
+		if j > 0:
 			f(i, j)
+
+# Create a dictionary ordering the elements of an array
+def orddict(l):
+	dict = {}
+	for i in range(len(l)):
+		dict[l[i]] = i
+	return dict
+
+# Create order dictionaries for f list
+ford = orddict(fs)
+
+# Sort the f-tokens into standard order, adjusting coefficient sign as needed,
+# and dropping terms containing duplicate f-tokens.
+def sort_fs(coef, str):
+	again = True
+	while again:
+		again = False
+		i = str.index('⊗')+len('⊗')
+		while i < len(str):
+			# Break out the next two f-tokens
+			j = break_feh(str, i)
+			if j < 0:
+				break
+			k = break_feh(str, j)
+			if k < 0:
+				break
+			fa = str[i:j]
+			fb = str[j:k]
+			if fa == fb:
+				return (0,"")	# whole term gets dropped
+			if ford[fa] > ford[fb]:
+				str = str[:i] + fb + fa + str[k:]
+				j = i+len(fb)	# fix position of second f
+				coef = -coef	# each swap changes coef sign
+				again = True	# iterate until settled
+			i = j
+	return (coef,str)
 
 def hit(str, action):
 	result = [[]]
@@ -76,8 +122,10 @@ def hit(str, action):
 			return
 		(coef,dst) = coefdst
 		rstr = str[:i] + dst + str[j:]
-		print str, "->", rstr, coef
-		result[0] += [(coef, rstr)]
+		(coef,rstr) = sort_fs(coef,rstr)
+		if rstr != "":
+			print str, "->", rstr, coef
+			result[0] += [(coef, rstr)]
 	foreach_feh(s, hit_feh)
 	return result
 
@@ -96,7 +144,8 @@ strs(4, v46_weights, v46_strings)
 #printweightstrs(v46_weights, v46_strings)
 
 print "Hitting:"
-for s in v46_strings[0]:
-	print s
-	print hit(s, action_f1)
+for i in range(len(v46_weights)):
+	print "Weight", v46_weights[i]
+	for s in v46_strings[i]:
+		hit(s, action_f1)
 
