@@ -113,28 +113,41 @@ def sort_fs(coef, str):
 			i = j
 	return (coef,str)
 
-def hit(str, action):
-	result = [[]]
+def hit(coef, str, action, results):
+	reslist = [results]
 	def hit_feh(i, j):
 		src = str[i:j]
 		coefdst = action.get(src, 0)
 		if coefdst == 0:
 			return
-		(coef,dst) = coefdst
+		(rcoef,dst) = coefdst
+		rcoef *= coef
 		rstr = str[:i] + dst + str[j:]
-		(coef,rstr) = sort_fs(coef,rstr)
+		(rcoef,rstr) = sort_fs(rcoef,rstr)
 		if rstr != "":
-			print str, "->", rstr, coef
-			result[0] += [(coef, rstr)]
+			print str, "->", rstr, rcoef
+			reslist[0] += [(rcoef, rstr)]
 	foreach_feh(s, hit_feh)
-	return result
+	return reslist[0]
 
 
 # SL4 for v34
-v34_weights = [[1,0,0]]
+v34_weights = [[1,0,0],[0,1,0],[0,0,1]]
 v34_strings = [[]] * len(v34_weights)
 strs(2, v34_weights, v34_strings)
-#printweightstrs(v34_weights, v34_strings)
+strs(3, v34_weights, v34_strings)
+printweightstrs(v34_weights, v34_strings)
+
+print "Hitting:"
+f2_once = []
+for s in v34_strings[0]:
+	hit(1, s, action_f2, f2_once)
+print f2_once
+print "Hitting twice:"
+f2_twice = []
+for v in f2_once:
+	print v
+	hit(coef, s, action_f2, f2_twice)
 
 # SL4 for v46
 v46_weights = [[0,2,1],[0,1,2],[1,0,1],[2,1,0],[1,2,0]]
@@ -143,9 +156,9 @@ strs(3, v46_weights, v46_strings)
 strs(4, v46_weights, v46_strings)
 #printweightstrs(v46_weights, v46_strings)
 
-print "Hitting:"
-for i in range(len(v46_weights)):
-	print "Weight", v46_weights[i]
-	for s in v46_strings[i]:
-		hit(s, action_f1)
+#print "Hitting:"
+#for i in range(len(v46_weights)):
+#	print "Weight", v46_weights[i]
+#	for s in v46_strings[i]:
+#		hit(s, action_f1)
 
