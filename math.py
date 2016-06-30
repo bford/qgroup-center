@@ -191,7 +191,12 @@ class Subspace:
 		for gens, coef in self.terms.items():
 			if rep != "" and coef >= 0:
 				rep += "+"
-			rep += str(coef) + gens
+			if coef == 1:
+				rep += gens
+			elif coef == -1:
+				rep += "-" + gens
+			else:
+				rep += str(coef) + gens
 		return rep
 
 	# Return the coefficient for a given generator string, 0 if none
@@ -287,17 +292,24 @@ strs(2, v34_weights, v34_strings)
 strs(3, v34_weights, v34_strings)
 printweightstrs(v34_weights, v34_strings)
 
-print "Hitting:"
-f2_once = []
-for (coef, gens) in v34_strings[0]:
-	basis = Subspace()
-	basis[gens] = coef
-	print "Basis:", basis
-	image = basis.hit_action(action_f1)
-	image = image.hit_action(action_f2)
-	print "Image:", image
-	image2 = basis.hit_operator("(3f2f1+2f2f1)-4f2f1")
-	print "Image2:", image2
+opers = [
+	"2f2f1-f1f2"
+#	"f1", "f2", "f3",
+#	"f2f2", "-(f2f3-f3f2)", "-(2f3f2-f2f3)","f3f3",
+#	"-f3",
+#	"-f1f1",
+#	"2f1f2-f2f1",
+#	"2f2f1-f1f2",
+#	"-f2f2"
+]
+for oper in opers:
+	print "Hitting with", oper
+	f2_once = []
+	for (coef, gens) in v34_strings[1]:
+		basis = Subspace()
+		basis[gens] = coef
+		image = basis.hit_operator(oper)
+		print basis, "->", image
 
 # SL4 for v46
 v46_weights = [[0,2,1],[0,1,2],[1,0,1],[2,1,0],[1,2,0]]
