@@ -61,7 +61,7 @@ def printweightstrs(weights, strings):
 
 # Find the end of an f, e, or h token starting at position i in str.
 # Return -1 if no such token starts at position i.
-def break_feh(str, i):
+def breakgen(str, i):
 	if i < len(str) and str[i].isalpha():
 		j = i+1
 		while j < len(str) and str[j].isdigit():
@@ -69,10 +69,40 @@ def break_feh(str, i):
 		return j
 	return -1
 
+# Parse a generator term from string s at position i,
+# returning (coef,gens,j) where j is the end of the term in string s.
+def parseterm(s, i):
+	# First break out the coefficient
+	coef = 1
+	j = i
+	if s[j] == '+' or s[j] == '-':
+		j += 1
+	if s[j].isidigit:
+		while j < len(s) and s[j].isdigit():
+			j += 1
+		coef = int(s[i:j])
+	else:
+		coef = int(s[i:j]+"1")
+
+	# Next break out the generator(s)
+	assert s[j].isalpha() # should have at least one
+	k = j
+	while k < len(s):
+		if s[k].isalpha():
+			k = breakgen(s, k)
+			assert k > 0
+		elif s[k].startswith('⊗'):
+			k += len('⊗')
+		else:
+			break	# not a generator or '⊗'
+	gens = s[j:k]
+
+	return (coef,gens,k)
+
 # Invoke function f on each f,e,h token within str.
 def foreach_feh(str, f):
 	for i in range(len(str)):
-		j = break_feh(str, i)
+		j = breakgen(str, i)
 		if j > 0:
 			f(i, j)
 
@@ -95,10 +125,10 @@ def sort_fs(coef, str):
 		i = str.index('⊗')+len('⊗')
 		while i < len(str):
 			# Break out the next two f-tokens
-			j = break_feh(str, i)
+			j = breakgen(str, i)
 			if j < 0:
 				break
-			k = break_feh(str, j)
+			k = breakgen(str, j)
 			if k < 0:
 				break
 			fa = str[i:j]
@@ -131,6 +161,73 @@ def hit(coef, str, action, results):
 	return reslist[0]
 
 
+class Subspace:
+	def __init__(self, s=""):
+		self.terms = {}
+		i = 0
+		while i < len(s):
+			(coef, gens, i) = parseterm(s, i)
+
+	def __repr__(self):
+		rep = ""
+		for gens, coef in self.terms.items():
+			if rep != "" and coef >= 0:
+				rep += "+"
+			rep += str(coef) + gens
+		return rep
+
+	# Return the coefficient for a given generator string, 0 if none
+	def __getitem__(self, gens):
+		return self.terms.get(gens, 0)
+
+	# Set the coefficient for a given generator string, delete if coef==0
+	def __setitem__(self, gens, coef):
+		if coef != 0:
+			self.terms[gens] = coef
+		elif gens in self.terms:
+			del self.terms[gens]
+
+	# Return a new subspace resulting from multiplying self by a scalar
+	def __mul__(self, scalar):
+		result = Subspace()
+		if scalar != 0:
+			for gens, coef in self.terms.items():
+				result.terms[gens] = coef * scalar
+		return result
+
+	def __rmul__(self, scalar):
+		return self * scalar
+
+	# Return a subspace resulting from adding two subspaces self and other
+	def __add__(self, other):
+		result = Subspace()
+		def accum(terms):
+			for gens, coef in terms.items():
+				result[gens] = result[gens] + coef
+		accum(self.terms)
+		accum(other.terms)
+		return result
+
+	# Return a subspace resulting from hitting with an action
+	def hit(self, action):
+		result = Subspace()
+		for gens, coef in self.terms.items():
+			def hitgen(i, j):
+				src = gens[i:j]
+				coefdst = action.get(src, 0)
+				if coefdst == 0:
+					return
+				(rcoef,dst) = coefdst
+				rcoef *= coef
+				rgens = gens[:i] + dst + gens[j:]
+				(rcoef,rgens) = sort_fs(rcoef,rgens)
+				if rgens != "":
+					#print coef, gens, "->", rcoef, rgens
+					result[rgens] = result[rgens] + rcoef
+			foreach_feh(gens, hitgen)
+		return result
+
+
 # SL4 for v34
 v34_weights = [[1,0,0],[0,1,0],[0,0,1]]
 v34_strings = [[]] * len(v34_weights)
@@ -140,13 +237,14 @@ printweightstrs(v34_weights, v34_strings)
 
 print "Hitting:"
 f2_once = []
-for (coef, str) in v34_strings[0]:
-	hit(coef, str, action_f2, f2_once)
-print f2_once
-print "Hitting twice:"
-f2_twice = []
-for (coef, str) in f2_once:
-	hit(coef, str, action_f2, f2_twice)
+for (coef, gens) in v34_strings[0]:
+	basis = Subspace()
+	basis[gens] = coef
+	print "Basis:", basis
+	image = basis.hit(action_f2)
+	print "Image:", image
+	image2 = image.hit(action_f2)
+	print "Image2:", image2
 
 # SL4 for v46
 v46_weights = [[0,2,1],[0,1,2],[1,0,1],[2,1,0],[1,2,0]]
