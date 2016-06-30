@@ -23,8 +23,8 @@ actions = {"f1":action_f1, "f2":action_f2, "f3":action_f3}
 actions["f1"].get("e2",(0,""))
 
 def printstrs(l):
-	for s in l:
-		print s
+	for (coef,str) in l:
+		print coef, str
 
 def weight(s):
 	counts = [0]*rank
@@ -44,7 +44,7 @@ def strs(n_fs, weights, result):
 			w = weight(prefix)
 			for i in range(len(weights)):
 				if weights[i] == w:
-					result[i] = result[i] + [prefix]
+					result[i] = result[i] + [(1, prefix)]
 			return
 		for i in range(next, len(fs)):
 			str = prefix + fs[i]
@@ -125,9 +125,9 @@ def hit(coef, str, action, results):
 		rstr = str[:i] + dst + str[j:]
 		(rcoef,rstr) = sort_fs(rcoef,rstr)
 		if rstr != "":
-			print str, "->", rstr, rcoef
+			print coef, str, "->", rcoef, rstr
 			reslist[0] += [(rcoef, rstr)]
-	foreach_feh(s, hit_feh)
+	foreach_feh(str, hit_feh)
 	return reslist[0]
 
 
@@ -140,14 +140,13 @@ printweightstrs(v34_weights, v34_strings)
 
 print "Hitting:"
 f2_once = []
-for s in v34_strings[0]:
-	hit(1, s, action_f2, f2_once)
+for (coef, str) in v34_strings[0]:
+	hit(coef, str, action_f2, f2_once)
 print f2_once
 print "Hitting twice:"
 f2_twice = []
-for v in f2_once:
-	print v
-	hit(coef, s, action_f2, f2_twice)
+for (coef, str) in f2_once:
+	hit(coef, str, action_f2, f2_twice)
 
 # SL4 for v46
 v46_weights = [[0,2,1],[0,1,2],[1,0,1],[2,1,0],[1,2,0]]
