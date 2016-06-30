@@ -292,30 +292,54 @@ strs(2, v34_weights, v34_strings)
 strs(3, v34_weights, v34_strings)
 printweightstrs(v34_weights, v34_strings)
 
-opers = [
-	"2f2f1-f1f2"
-#	"f1", "f2", "f3",
-#	"f2f2", "-(f2f3-f3f2)", "-(2f3f2-f2f3)","f3f3",
-#	"-f3",
-#	"-f1f1",
-#	"2f1f2-f2f1",
-#	"2f2f1-f1f2",
-#	"-f2f2"
+arrows = [
+	(0, "-f2f2"),
+	(0, "2f1f2-f2f1"),
+	(0, "-f3"),
+	(1, "2f2f1-f1f2"),
+	(1, "-f1f1"),
+	(1, "f3f3"),
+	(1, "-(2f2f3-f3f2)"),
+	(2, "f1"),
+	(2, "-(2f3f2-f2f3)"),
+	(2, "f2f2"),
 ]
-for oper in opers:
-	print "Hitting with", oper
+
+matdict = {}
+coldict = {}
+for (weight, operator) in arrows:
+	print "Hitting weight", weight, "with", operator
 	f2_once = []
-	for (coef, gens) in v34_strings[1]:
+	for (coef, gens) in v34_strings[weight]:
 		basis = Subspace()
 		basis[gens] = coef
-		image = basis.hit_operator(oper)
+		image = basis.hit_operator(operator)
 		print basis, "->", image
+		for igens, icoef in image.terms.items():
+			row = matdict.get(igens, {})
+			row[gens] = row.get(gens, 0) + icoef
+			matdict[igens] = row
+			coldict[gens] = 1
+print "rows (unique monomials):"
+for key in matdict:
+	print " ", key
+print "cols (basis elements):"
+for key in coldict:
+	print " ", key
+matrix = []
+for rowkey, rowdict in matdict.items():
+	row = []
+	for colkey in coldict:
+		row = row + [rowdict.get(colkey, 0)]
+	matrix = matrix + [row]
+print len(matrix), "x", len(coldict)
+print matrix
 
 # SL4 for v46
-v46_weights = [[0,2,1],[0,1,2],[1,0,1],[2,1,0],[1,2,0]]
-v46_strings = [[]] * len(v46_weights)
-strs(3, v46_weights, v46_strings)
-strs(4, v46_weights, v46_strings)
+#v46_weights = [[0,2,1],[0,1,2],[1,0,1],[2,1,0],[1,2,0]]
+#v46_strings = [[]] * len(v46_weights)
+#strs(3, v46_weights, v46_strings)
+#strs(4, v46_weights, v46_strings)
 #printweightstrs(v46_weights, v46_strings)
 
 #print "Hitting:"
