@@ -69,20 +69,38 @@ def breakgen(str, i):
 		return j
 	return -1
 
-# Parse a generator term from string s at position i,
-# returning (coef,gens,j) where j is the end of the term in string s.
-def parseterm(s, i):
-	# First break out the coefficient
+# Find the end of a parenthesized expression starting at position i in string s
+def matchparen(s, i):
+	j = i+1
+	level = 0
+	while level >= 0:
+		if s[j] == '(':
+			level += 1
+		elif s[j] == ')':
+			level -= 1
+		j += 1
+	return j
+
+# Parse an optional coefficient from string s at position i,
+# returning (coef,j) where j is the end of the coefficient (==i if none)
+def parsecoef(s, i):
 	coef = 1
 	j = i
 	if s[j] == '+' or s[j] == '-':
 		j += 1
-	if s[j].isidigit:
+	if s[j].isdigit():
 		while j < len(s) and s[j].isdigit():
 			j += 1
 		coef = int(s[i:j])
 	else:
 		coef = int(s[i:j]+"1")
+	return (coef,j)
+
+# Parse a generator term from string s at position i,
+# returning (coef,gens,j) where j is the end of the term in string s.
+def parseterm(s, i):
+	# First break out the coefficient
+	(coef, j) = parsecoef(s, i)
 
 	# Next break out the generator(s)
 	assert s[j].isalpha() # should have at least one
@@ -209,7 +227,7 @@ class Subspace:
 		return result
 
 	# Return a subspace resulting from hitting with an action
-	def hit(self, action):
+	def hit_action(self, action):
 		result = Subspace()
 		for gens, coef in self.terms.items():
 			def hitgen(i, j):
@@ -227,6 +245,40 @@ class Subspace:
 			foreach_feh(gens, hitgen)
 		return result
 
+	# Return subspace resulting from hitting with a co-boundary operator
+	def hit_operator(self, oper):
+
+		def primexpr(basis, i):
+			if i >= len(oper):
+				return (basis, i)
+			elif oper[i] == '(':
+				j = matchparen(oper, i)
+				(image, k) = primexpr(basis, j)
+				return (image.hit_operator(oper[i+1:j-1]), k)
+			elif oper[i] == 'f':
+				j = breakgen(oper, i)
+				assert j > i
+				(image, k) = primexpr(basis, j)
+				action = actions[oper[i:j]]
+				return (image.hit_action(action), k)
+			else:
+				return (basis, i)
+
+		def multexpr(basis, i):
+			(coef, j) = parsecoef(oper, i)
+			(image, k) = primexpr(basis, j)
+			return (coef * image, k)
+
+		# Sum the results of all terms in the operator
+		rsum = Subspace()
+		i = 0
+		while i < len(oper):	# iterate over terms
+			(image, j) = multexpr(self, i)
+			rsum = rsum + image
+			assert j > i
+			i = j
+		return rsum
+
 
 # SL4 for v34
 v34_weights = [[1,0,0],[0,1,0],[0,0,1]]
@@ -241,9 +293,10 @@ for (coef, gens) in v34_strings[0]:
 	basis = Subspace()
 	basis[gens] = coef
 	print "Basis:", basis
-	image = basis.hit(action_f2)
+	image = basis.hit_action(action_f1)
+	image = image.hit_action(action_f2)
 	print "Image:", image
-	image2 = image.hit(action_f2)
+	image2 = basis.hit_operator("(3f2f1+2f2f1)-4f2f1")
 	print "Image2:", image2
 
 # SL4 for v46
