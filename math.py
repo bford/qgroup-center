@@ -20,7 +20,17 @@ action_f3 = {	"e3":(-1,"h3"), "e23":(1,"e2"), "e123":(1,"e12"),
 
 actions = {"f1":action_f1, "f2":action_f2, "f3":action_f3}
 
-actions["f1"].get("e2",(0,""))
+bgun_map = {
+	"h1":{"e1⊗f1":2,"e2⊗f2":-1,"e12⊗f12":1,"e23⊗f23":-1,"e123⊗f123":1},
+	"h2":{"e1⊗f1":-1,"e2⊗f2":2,"e3⊗f3":-1,"e12⊗f12":1,"e23⊗f23":1},
+	"h3":{"e2⊗f2":-1,"e3⊗f3":2,"e12⊗f12":-1,"e23⊗f23":1,"e123⊗f123":1},
+	"f1":{"e2⊗f12":-1,"e23⊗f123":-1},
+	"f2":{"e1⊗f12":1,"e3⊗f23":-1},
+	"f3":{"e2⊗f23":1,"e12⊗f123":1},
+	"f12":{"e3⊗f123":-1},
+	"f23":{"e1⊗f123":1},
+	"f123":{},
+}
 
 def printstrs(l):
 	for (coef,str) in l:
@@ -284,6 +294,30 @@ class Subspace:
 			i = j
 		return rsum
 
+	# Reduce a subspace by eliminating monomials starting with 'f' or 'h'
+	def reduce(self):
+		result = Subspace()
+		for gens, coef in self.terms.items():
+			if gens[0] == 'e':
+				result[gens] = result[gens] + coef
+				continue
+			print "reducing",gens
+			assert gens[0] == 'f' or gens[0] == 'h'
+			i = gens.find("⊗")
+			assert i > 0
+			j = i+len("⊗")
+			conv = bgun_map[gens[:i]]
+			tail = gens[j:]
+			for cgens, ccoef in conv.items():
+				cgens = cgens + tail
+				print "c>",ccoef,cgens
+				(ccoef, cgens) = sort_fs(ccoef, cgens)
+				print "s>",ccoef,cgens
+				ccoef = ccoef * coef
+				print "m>",ccoef,cgens
+				result[cgens] = result[cgens] + ccoef
+		return result
+
 
 # SL4 for v34
 v34_weights = [[1,0,0],[0,1,0],[0,0,1]]
@@ -315,6 +349,8 @@ for (weight, operator) in arrows:
 		basis[gens] = coef
 		image = basis.hit_operator(operator)
 		print basis, "->", image
+		image = image.reduce()
+		print "reduced:", image
 		for igens, icoef in image.terms.items():
 			row = matdict.get(igens, {})
 			row[gens] = row.get(gens, 0) + icoef
