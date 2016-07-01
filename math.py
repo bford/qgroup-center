@@ -339,8 +339,8 @@ v34image_arrows = [
 
 # SL4 for v46
 v46_lengths = [3,4]
-v46kernel_weights = [[0,2,1],[0,1,2],[1,0,1],[2,1,0],[1,2,0]]
-v46kernel_arrows = [
+v46_weights = [[0,2,1],[0,1,2],[1,0,1],[2,1,0],[1,2,0]]
+v46_arrows = [
 	(0, "f3"),
 	(0, "-f1f1f1"),
 	(0, "3f2f1-2f1f2"),
@@ -361,9 +361,9 @@ v46image_arrows = v34_arrows
 
 # SL4 for v58
 v58_lengths = [4,5]
-#		     s1s3s2  s2s1s3  s3s2s1  s1s2s1  s1s2s3  s3s2s3
-v58kernel_weights = [[2,1,2],[1,3,1],[1,2,3],[2,2,0],[3,2,1],[0,2,2]]
-v58kernel_arrows = [
+#	       s1s3s2  s2s1s3  s3s2s1  s1s2s1  s1s2s3  s3s2s3
+v58_weights = [[2,1,2],[1,3,1],[1,2,3],[2,2,0],[3,2,1],[0,2,2]]
+v58_arrows = [
 	(0, "-(3f1f2-2f2f1)"),
 	(0, "f2f2f2"),
 	(0, "-(3f3f2-2f2f3)"),
@@ -379,8 +379,70 @@ v58kernel_arrows = [
 	(5, "f1f1f1"),
 	(5, "(6f3f2f1-4f1f3f2-3f2f1f3+2f1f2f3)"),
 ]
-v58image_weights = v46kernel_weights
-v58image_arrows = v46kernel_arrows
+v58image_weights = v46_weights
+v58image_arrows = v46_arrows
+
+
+class Case:
+	def __init__(self, name, lengths, weights, arrows):
+		self.name = name
+		self.lengths = lengths
+		self.weights = weights
+		self.arrows = arrows
+
+		self.basis = [[]] * len(weights)
+		for l in lengths:
+			strs(l, weights, self.basis)
+
+
+cases = [
+	Case("v34", v34_lengths, v34_weights, v34_arrows),
+	Case("v46", v46_lengths, v46_weights, v46_arrows),
+	Case("v58", v58_lengths, v58_weights, v58_arrows),
+]
+
+def checkcases(level):
+	print "Checking cases at level", level
+	case1 = cases[level]
+	for (w1, o1) in case1.arrows:
+		#print "Hit1", case1.weights[w1], "with", o1
+		for (c1, g1) in case1.basis[w1]:
+			b1 = Subspace()
+			b1[g1] = c1
+			i1 = b1.hit_operator(o1)
+			i1 = i1.reduce()
+			iw = []
+			for igens, icoef in i1.terms.items():
+				w = weight(igens)
+				if iw == []:
+					iw = w
+				else:
+					assert iw == w
+			#print b1, "->", i1, "weight", iw
+
+			# Next case
+			case2 = cases[level+1]
+			for (w2, o2) in case2.arrows:
+				if case2.weights[w2] != iw:
+					continue
+				#print " Hit2", case2.weights[w2], "with", o2
+				i2 = i1.hit_operator(o2)
+				i2 = i2.reduce()
+				i2w = []
+				for i2gens, i2coef in i2.terms.items():
+					i2gw = weight(i2gens)
+					if i2w == []:
+						i2w = i2gw
+					else:
+						assert i2w == i2gw
+
+				# Should wind up zero
+				#print b1, "->", i1, "->", i2
+				if len(i2.terms) != 0:
+					print "OOPS", case1.weights[w1], case2.weights[w2]
+
+checkcases(0)
+
 
 def calcmatrix(lengths, weights, arrows):
 	strings = [[]] * len(weights)
@@ -392,12 +454,11 @@ def calcmatrix(lengths, weights, arrows):
 	coldict = {}
 	for (weight, operator) in arrows:
 		print "Hitting weight", weight, "with", operator
-		f2_once = []
 		for (coef, gens) in strings[weight]:
 			basis = Subspace()
 			basis[gens] = coef
 			image = basis.hit_operator(operator)
-			#image = image.reduce()
+			image = image.reduce()
 			print basis, "->", image
 			for igens, icoef in image.terms.items():
 				row = matdict.get(igens, {})
@@ -422,9 +483,9 @@ def calcmatrix(lengths, weights, arrows):
 #calcmatrix(v34_lengths, v34_weights, v34_arrows)
 #calcmatrix(v34_lengths, v34image_weights, v34image_arrows)
 
-#calcmatrix(v46_lengths, v46kernel_weights, v46kernel_arrows)
+#calcmatrix(v46_lengths, v46_weights, v46_arrows)
 #calcmatrix(v46_lengths, v46image_weights, v46image_arrows)
 
-calcmatrix(v58_lengths, v58kernel_weights, v58kernel_arrows)
-calcmatrix(v58_lengths, v58image_weights, v58image_arrows)
+#calcmatrix(v58_lengths, v58_weights, v58_arrows)
+#calcmatrix(v58_lengths, v58image_weights, v58image_arrows)
 
