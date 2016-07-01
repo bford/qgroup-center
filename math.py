@@ -330,7 +330,6 @@ v34_arrows = [
 	(2, "-(2f3f2-f2f3)"),
 	(2, "f2f2"),
 ]
-
 v34image_weights = [[0,0,0]]
 v34image_arrows = [
 	(0, "f1"),
@@ -339,8 +338,8 @@ v34image_arrows = [
 ]
 
 # SL4 for v46
+v46_lengths = [3,4]
 v46kernel_weights = [[0,2,1],[0,1,2],[1,0,1],[2,1,0],[1,2,0]]
-v46kernel_lengths = [3,4]
 v46kernel_arrows = [
 	(0, "f3"),
 	(0, "-f1f1f1"),
@@ -357,12 +356,33 @@ v46kernel_arrows = [
 	(4, "f3f3f3"),
 	(4, "-f1"),
 ]
-
 v46image_weights = v34_weights
-v46image_lengths = v46kernel_lengths
 v46image_arrows = v34_arrows
 
-def calcmatrix(weights, lengths, arrows):
+# SL4 for v58
+v58_lengths = [4,5]
+#		     s1s3s2  s2s1s3  s3s2s1  s1s2s1  s1s2s3  s3s2s3
+v58kernel_weights = [[2,1,2],[1,3,1],[1,2,3],[2,2,0],[3,2,1],[0,2,2]]
+v58kernel_arrows = [
+	(0, "-(3f1f2-2f2f1)"),
+	(0, "f2f2f2"),
+	(0, "-(3f3f2-2f2f3)"),
+	(1, "(4f2f1f3-2f1f2f3-2f3f2f1+f1f3f2)"),
+	(1, "f1f1"),
+	(1, "-f3f3"),
+	(2, "f2"),
+	(2, "-f1"),
+	(3, "(6f1f2f3-4f1f3f2-3f2f1f3+2f3f2f1)"),
+	(3, "-f3f3f3"),
+	(4, "f3"),
+	(4, "f2"),
+	(5, "f1f1f1"),
+	(5, "(6f3f2f1-4f1f3f2-3f2f1f3+2f1f2f3)"),
+]
+v58image_weights = v46kernel_weights
+v58image_arrows = v46kernel_arrows
+
+def calcmatrix(lengths, weights, arrows):
 	strings = [[]] * len(weights)
 	for l in lengths:
 		strs(l, weights, strings)
@@ -399,9 +419,12 @@ def calcmatrix(weights, lengths, arrows):
 	print len(matrix), "x", len(coldict)
 	print matrix
 
-#calcmatrix(v34_weights, v34_lengths, v34_arrows)
-#calcmatrix(v34image_weights, v34_lengths, v34image_arrows)
+#calcmatrix(v34_lengths, v34_weights, v34_arrows)
+#calcmatrix(v34_lengths, v34image_weights, v34image_arrows)
 
-#calcmatrix(v46kernel_weights, v46kernel_lengths, v46kernel_arrows)
-#calcmatrix(v46image_weights, v46image_lengths, v46image_arrows)
+#calcmatrix(v46_lengths, v46kernel_weights, v46kernel_arrows)
+#calcmatrix(v46_lengths, v46image_weights, v46image_arrows)
+
+calcmatrix(v58_lengths, v58kernel_weights, v58kernel_arrows)
+calcmatrix(v58_lengths, v58image_weights, v58image_arrows)
 
