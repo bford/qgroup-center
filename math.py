@@ -301,7 +301,6 @@ class Subspace:
 			if gens[0] == 'e':
 				result[gens] = result[gens] + coef
 				continue
-			print "reducing",gens
 			assert gens[0] == 'f' or gens[0] == 'h'
 			i = gens.find("⊗")
 			assert i > 0
@@ -310,23 +309,16 @@ class Subspace:
 			tail = gens[j:]
 			for cgens, ccoef in conv.items():
 				cgens = cgens + tail
-				print "c>",ccoef,cgens
 				(ccoef, cgens) = sort_fs(ccoef, cgens)
-				print "s>",ccoef,cgens
 				ccoef = ccoef * coef
-				print "m>",ccoef,cgens
 				result[cgens] = result[cgens] + ccoef
 		return result
 
 
 # SL4 for v34
 v34_weights = [[1,0,0],[0,1,0],[0,0,1]]
-v34_strings = [[]] * len(v34_weights)
-strs(2, v34_weights, v34_strings)
-strs(3, v34_weights, v34_strings)
-printweightstrs(v34_weights, v34_strings)
-
-arrows = [
+v34_lengths = [2,3]
+v34_arrows = [
 	(0, "-f2f2"),
 	(0, "2f1f2-f2f1"),
 	(0, "-f3"),
@@ -339,48 +331,63 @@ arrows = [
 	(2, "f2f2"),
 ]
 
-matdict = {}
-coldict = {}
-for (weight, operator) in arrows:
-	print "Hitting weight", weight, "with", operator
-	f2_once = []
-	for (coef, gens) in v34_strings[weight]:
-		basis = Subspace()
-		basis[gens] = coef
-		image = basis.hit_operator(operator)
-		print basis, "->", image
-		image = image.reduce()
-		print "reduced:", image
-		for igens, icoef in image.terms.items():
-			row = matdict.get(igens, {})
-			row[gens] = row.get(gens, 0) + icoef
-			matdict[igens] = row
-			coldict[gens] = 1
-print "rows (unique monomials):"
-for key in matdict:
-	print " ", key
-print "cols (basis elements):"
-for key in coldict:
-	print " ", key
-matrix = []
-for rowkey, rowdict in matdict.items():
-	row = []
-	for colkey in coldict:
-		row = row + [rowdict.get(colkey, 0)]
-	matrix = matrix + [row]
-print len(matrix), "x", len(coldict)
-print matrix
-
 # SL4 for v46
-#v46_weights = [[0,2,1],[0,1,2],[1,0,1],[2,1,0],[1,2,0]]
-#v46_strings = [[]] * len(v46_weights)
-#strs(3, v46_weights, v46_strings)
-#strs(4, v46_weights, v46_strings)
-#printweightstrs(v46_weights, v46_strings)
+v46_weights = [[0,2,1],[0,1,2],[1,0,1],[2,1,0],[1,2,0]]
+v46_lengths = [3,4]
+v46_arrows = [
+	(0, "f3"),
+	(0, "-f1f1f1"),
+	(0, "3f2f1-2f1f2"),
+	(1, "f2"),
+	(1, "f1f1"),
+	(1, "-(6f3f2f1-4f2f1f3-3f1f3f2+2f1f2f3)"),
+	(2, "(4f1f3f2-2f3f2f1-2f1f2f3+f2f3f1)"),
+	(2, "-f2f2f2"),
+	(3, "(6f1f2f3-4f2f1f3-3f1f3f2+2f3f2f1)"),
+	(3, "f3f3"),
+	(3, "-f2"),
+	(4, "(3f2f3-2f3f2)"),
+	(4, "f3f3f3"),
+	(4, "-f1"),
+]
 
-#print "Hitting:"
-#for i in range(len(v46_weights)):
-#	print "Weight", v46_weights[i]
-#	for s in v46_strings[i]:
-#		hit(s, action_f1)
+def calcmatrix(weights, lengths, arrows):
+	strings = [[]] * len(weights)
+	for l in lengths:
+		strs(l, weights, strings)
+	printweightstrs(weights, strings)
+
+	matdict = {}
+	coldict = {}
+	for (weight, operator) in arrows:
+		print "Hitting weight", weight, "with", operator
+		f2_once = []
+		for (coef, gens) in strings[weight]:
+			basis = Subspace()
+			basis[gens] = coef
+			image = basis.hit_operator(operator)
+			image = image.reduce()
+			print basis, "->", image
+			for igens, icoef in image.terms.items():
+				row = matdict.get(igens, {})
+				row[gens] = row.get(gens, 0) + icoef
+				matdict[igens] = row
+				coldict[gens] = 1
+	print "rows (unique monomials):"
+	for key in matdict:
+		print " ", key
+	print "cols (basis elements):"
+	for key in coldict:
+		print " ", key
+	matrix = []
+	for rowkey, rowdict in matdict.items():
+		row = []
+		for colkey in coldict:
+			row = row + [rowdict.get(colkey, 0)]
+		matrix = matrix + [row]
+	print len(matrix), "x", len(coldict)
+	print matrix
+
+#calcmatrix(v34_weights, v34_lengths, v34_arrows)
+calcmatrix(v46_weights, v46_lengths, v46_arrows)
 
