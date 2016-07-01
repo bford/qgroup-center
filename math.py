@@ -316,8 +316,8 @@ class Subspace:
 
 
 # SL4 for v34
-v34_weights = [[1,0,0],[0,1,0],[0,0,1]]
 v34_lengths = [2,3]
+v34_weights = [[1,0,0],[0,1,0],[0,0,1]]
 v34_arrows = [
 	(0, "-f2f2"),
 	(0, "2f1f2-f2f1"),
@@ -331,10 +331,17 @@ v34_arrows = [
 	(2, "f2f2"),
 ]
 
+v34image_weights = [[0,0,0]]
+v34image_arrows = [
+	(0, "f1"),
+	(0, "f2"),
+	(0, "f3"),
+]
+
 # SL4 for v46
-v46_weights = [[0,2,1],[0,1,2],[1,0,1],[2,1,0],[1,2,0]]
-v46_lengths = [3,4]
-v46_arrows = [
+v46kernel_weights = [[0,2,1],[0,1,2],[1,0,1],[2,1,0],[1,2,0]]
+v46kernel_lengths = [3,4]
+v46kernel_arrows = [
 	(0, "f3"),
 	(0, "-f1f1f1"),
 	(0, "3f2f1-2f1f2"),
@@ -351,6 +358,10 @@ v46_arrows = [
 	(4, "-f1"),
 ]
 
+v46image_weights = v34_weights
+v46image_lengths = v46kernel_lengths
+v46image_arrows = v34_arrows
+
 def calcmatrix(weights, lengths, arrows):
 	strings = [[]] * len(weights)
 	for l in lengths:
@@ -366,7 +377,7 @@ def calcmatrix(weights, lengths, arrows):
 			basis = Subspace()
 			basis[gens] = coef
 			image = basis.hit_operator(operator)
-			image = image.reduce()
+			#image = image.reduce()
 			print basis, "->", image
 			for igens, icoef in image.terms.items():
 				row = matdict.get(igens, {})
@@ -389,5 +400,8 @@ def calcmatrix(weights, lengths, arrows):
 	print matrix
 
 #calcmatrix(v34_weights, v34_lengths, v34_arrows)
-calcmatrix(v46_weights, v46_lengths, v46_arrows)
+#calcmatrix(v34image_weights, v34_lengths, v34image_arrows)
+
+#calcmatrix(v46kernel_weights, v46kernel_lengths, v46kernel_arrows)
+#calcmatrix(v46image_weights, v46image_lengths, v46image_arrows)
 
