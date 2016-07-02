@@ -388,7 +388,7 @@ class Subspace(Terms):
 
 	# Attempt to rewrite all terms to end in specified suffix monomial
 	def resuffix(self, suffix):
-		#print "resuffix", self, "suffix", suffix
+		print("resuffix", self, "suffix", suffix)
 		suflist = tokgens(suffix)
 
 		# Perform a substitution that produces 2 terms from one
@@ -533,16 +533,18 @@ v34image_arrows = [
 # SL4 for v46
 v46_lengths = [3,4]
 v46_weights = [[0,2,1],[0,1,2],[1,0,1],[2,1,0],[1,2,0]]
-v46_arrows = [
+v46_arrows = [		# Anya's hand-computed
 	(0, "f3"),
 	(0, "-f1f1f1"),
 	(0, "3f2f1-2f1f2"),
 	(1, "f2"),
 	(1, "f1f1"),
-	(1, "-(6f3f2f1-4f2f1f3-3f1f3f2+2f1f2f3)"),	# wrong!?
-	(2, "(4f1f3f2-2f3f2f1-2f1f2f3+f2f3f1)"),	# !?
+	(1, "-(6f3f2f1-4f2f1f3-3f1f3f2+2f1f2f3)"),
+	(2, "f1f1f2f2+4f1f2f1f2+2f2f1f2f1-4f2f1f1f2-2f1f2f2f1"),
+	(2, "(4f1f3f2-2f3f2f1-2f1f2f3+f2f3f1)"),
 	(2, "-f2f2f2"),
-	(3, "(6f1f2f3-4f2f1f3-3f1f3f2+2f3f2f1)"),	# !?
+#	(2, XXX
+	(3, "(6f1f2f3-4f2f1f3-3f1f3f2+2f3f2f1)"),
 	(3, "f3f3"),
 	(3, "-f2"),
 	(4, "(3f2f3-2f3f2)"),
@@ -811,7 +813,9 @@ def calcmatrix(lengths, weights, arrows):
 	print(len(matrix), "x", len(coldict))
 	M = Matrix(matrix)
 	r = M.rank()
-	n = len(M.nullspace())
+	N = M.nullspace()
+	#print("nullspace",N)
+	n = len(N)
 	print("rank", r, "nullspace", n)
 	return (M,r,n)
 
