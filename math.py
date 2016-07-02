@@ -36,15 +36,28 @@ def printstrs(l):
 	for (coef,str) in l:
 		print coef, str
 
+# Find the end of an f, e, or h token starting at position i in str.
+# Return -1 if no such token starts at position i.
+def breakgen(str, i):
+	if i < len(str) and str[i].isalpha():
+		j = i+1
+		while j < len(str) and str[j].isdigit():
+			j += 1
+		return j
+	return -1
+
 def weight(s):
 	counts = [0]*rank
-	def count(subs, delta):
-		for c in subs:
-			if c.isdigit():
-				counts[int(c)-1] += delta
-	split = s.find("⊗")
-	count(s[:split], -1)	# e's count negatively
-	count(s[split+1:], 1)	# f's count positively
+	delta = 0
+	for c in s:
+		if c == 'f':
+			delta = 1	# f's count positively
+		elif c == 'e':
+			delta = -1	# e's count negatively
+		elif c == 'h':
+			delta = 0	# h's count neutrally
+		elif c.isdigit():
+			counts[int(c)-1] += delta
 	return counts
 
 # weights is a list of weights of interest
@@ -68,16 +81,6 @@ def printweightstrs(weights, strings):
 	for i in range(len(weights)):
 		print weights[i]
 		printstrs(strings[i])
-
-# Find the end of an f, e, or h token starting at position i in str.
-# Return -1 if no such token starts at position i.
-def breakgen(str, i):
-	if i < len(str) and str[i].isalpha():
-		j = i+1
-		while j < len(str) and str[j].isdigit():
-			j += 1
-		return j
-	return -1
 
 # Find the end of a parenthesized expression starting at position i in string s
 def matchparen(s, i):
@@ -198,7 +201,7 @@ class Subspace:
 
 	def __repr__(self):
 		rep = ""
-		for gens, coef in self.terms.items():
+		for gens, coef in self.items():
 			if rep != "" and coef >= 0:
 				rep += "+"
 			if coef == 1:
@@ -207,6 +210,8 @@ class Subspace:
 				rep += "-" + gens
 			else:
 				rep += str(coef) + gens
+		if rep == "":
+			rep = "0"
 		return rep
 
 	# Return the coefficient for a given generator string, 0 if none
@@ -220,11 +225,14 @@ class Subspace:
 		elif gens in self.terms:
 			del self.terms[gens]
 
+	def items(self):
+		return self.terms.items()
+
 	# Return a new subspace resulting from multiplying self by a scalar
 	def __mul__(self, scalar):
 		result = Subspace()
 		if scalar != 0:
-			for gens, coef in self.terms.items():
+			for gens, coef in self.items():
 				result.terms[gens] = coef * scalar
 		return result
 
@@ -244,7 +252,7 @@ class Subspace:
 	# Return a subspace resulting from hitting with an action
 	def hit_action(self, action):
 		result = Subspace()
-		for gens, coef in self.terms.items():
+		for gens, coef in self.items():
 			def hitgen(i, j):
 				src = gens[i:j]
 				coefdst = action.get(src, 0)
@@ -297,7 +305,7 @@ class Subspace:
 	# Reduce a subspace by eliminating monomials starting with 'f' or 'h'
 	def reduce(self):
 		result = Subspace()
-		for gens, coef in self.terms.items():
+		for gens, coef in self.items():
 			if gens[0] == 'e':
 				result[gens] = result[gens] + coef
 				continue
@@ -313,6 +321,13 @@ class Subspace:
 				ccoef = ccoef * coef
 				result[cgens] = result[cgens] + ccoef
 		return result
+
+	# Find the set of monomial weights a subspace is comprised of
+	def weights(self):
+		wts = set()
+		for gens, coef in self.items():
+			wts.add(str(weight(gens)))
+		return wts
 
 
 # SL4 for v34
@@ -403,43 +418,34 @@ cases = [
 
 def checkcases(level):
 	print "Checking cases at level", level
-	case1 = cases[level]
-	for (w1, o1) in case1.arrows:
-		#print "Hit1", case1.weights[w1], "with", o1
-		for (c1, g1) in case1.basis[w1]:
-			b1 = Subspace()
-			b1[g1] = c1
-			i1 = b1.hit_operator(o1)
-			i1 = i1.reduce()
-			iw = []
-			for igens, icoef in i1.terms.items():
-				w = weight(igens)
-				if iw == []:
-					iw = w
-				else:
-					assert iw == w
-			#print b1, "->", i1, "weight", iw
+	def flow(level, subs):
+		print "flow", level, subs
+		case = cases[level]
+		next = Subspace()
+		ncase = cases[level+1]
+		for gens, coef in subs.items():
+			w = weight(gens)
+			for (wt, op) in case.arrows:
+				if case.weights[wt] == w:
+					base = Subspace()
+					base[gens] = coef
+					imag = base.hit_operator(op)
+					imag = imag.reduce()
+					print "  ",base, w, "->", op, "->", imag, imag.weights()
+					next = next + imag
+		print "next", next
+		print "weights", next.weights()
+		return next
 
-			# Next case
-			case2 = cases[level+1]
-			for (w2, o2) in case2.arrows:
-				if case2.weights[w2] != iw:
-					continue
-				#print " Hit2", case2.weights[w2], "with", o2
-				i2 = i1.hit_operator(o2)
-				i2 = i2.reduce()
-				i2w = []
-				for i2gens, i2coef in i2.terms.items():
-					i2gw = weight(i2gens)
-					if i2w == []:
-						i2w = i2gw
-					else:
-						assert i2w == i2gw
-
-				# Should wind up zero
-				#print b1, "->", i1, "->", i2
-				if len(i2.terms) != 0:
-					print "OOPS", case1.weights[w1], case2.weights[w2]
+	case = cases[level]
+	#for w in range(len(case.weights)):
+	for w in [1]:
+		for (c, g) in case.basis[w]:
+			print "Checking weight", case.weights[w], "basis", c, g
+			b = Subspace()
+			b[g] = c
+			n = flow(level, b)
+			f = flow(level+1, n)
 
 checkcases(0)
 
@@ -460,7 +466,7 @@ def calcmatrix(lengths, weights, arrows):
 			image = basis.hit_operator(operator)
 			image = image.reduce()
 			print basis, "->", image
-			for igens, icoef in image.terms.items():
+			for igens, icoef in image.items():
 				row = matdict.get(igens, {})
 				row[gens] = row.get(gens, 0) + icoef
 				matdict[igens] = row
