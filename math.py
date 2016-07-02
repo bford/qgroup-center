@@ -386,18 +386,16 @@ class Subspace(Terms):
 	def resuffix(self, suffix):
 		print "resuffix", self, "suffix", suffix
 		suflist = tokgens(suffix)
-		result = Subspace()
-		changed = False
 
 		# Perform a substitution that produces 2 terms from one
-		def subst2(coef, pre, sub2, post):
+		def subst2(coef, pre, sub2, post, result):
 			(r1,s2,r2) = sub2
 			g1 = "".join(pre + [r1] + post)
 			result[g1] = result[g1] + coef
 			g2 = "".join(pre + [r2] + post)
 			result[g2] = result[g2] + coef*s2
 
-		for gens, coef in self.items():
+		def pull(gens, coef, result):
 			genlist = tokgens(gens)
 
 			# Find last generator that doesn't match the suffix
@@ -409,8 +407,7 @@ class Subspace(Terms):
 			if j < 0:
 				# Suffix already matches, no rewrite needed
 				result[gens] = result[gens] + coef
-				continue
-			changed = True
+				return False
 
 			# Now search backwards for the last suitable singleton
 			# that might plausibly be moved into position i
@@ -419,19 +416,13 @@ class Subspace(Terms):
 			k = i-1
 			while k >= 0 and genlist[k] != want:
 				k -= 1
-
-			# If we couldn't find such a singleton,
-			# then expand blobs in hopes of finding one
 			if k < 0:
-				k = 0
-				while not genlist[k] in expansions:
-					k += 1
-					assert k < i
-				sub2 = expansions[genlist[k]]
-				print " in", "".join(genlist), "item", k
-				print "  expand", genlist[k]
-				subst2(coef, genlist[:k], sub2, genlist[k+1:])
-				continue
+				# Couldn't find such a singleton,
+				# so give up and leave this term unchanged.
+				result[gens] = result[gens] + coef
+				return False
+
+			changed = True
 
 			# Move it right as far as commutativity rules allow
 			while k < i and want in commutes[genlist[k+1]]:
@@ -441,7 +432,7 @@ class Subspace(Terms):
 			if k == i:
 				gens = "".join(genlist)
 				result[gens] = result[gens] + coef
-				continue
+				return True
 
 			# We couldn't commute into the desired position,
 			# so rewrite to merge it into a (bigger) blob,
@@ -452,10 +443,53 @@ class Subspace(Terms):
 			(r1,s2,r2) = rewrites[orig]
 			print " in", "".join(genlist), "item", k
 			print "  rewrite", orig, "->", r1, s2, r2
-			subst2(coef, genlist[:k], (r1,s2,r2), genlist[k+2:])
+			subst2(coef, genlist[:k], (r1,s2,r2), genlist[k+2:],
+				result)
+			return True
 
-		if changed:
-			return result.resuffix(suffix)
+		def expand(gens, coef, result):
+			genlist = tokgens(gens)
+			for i in range(len(genlist)):
+				if genlist[i] in expansions:
+					changed = True
+					sub2 = expansions[genlist[i]]
+					print " in", "".join(genlist), "item", i
+					print "  expand", genlist[i]
+					subst2(coef, genlist[:i], sub2,
+						genlist[i+1:], result)
+					return True
+
+			# Nothing to expand
+			result[gens] = result[gens] + coef
+			return False
+
+		orig = self
+
+		# First tactic: pull singletons rightward,
+		# building blobs as needed to allow them to commute.
+		# Iterate until we can't make any more progress this way.
+		print "Pull"
+		changed = True
+		while changed:
+			result = Subspace()
+			changed = False
+			for gens, coef in orig.items():
+				if pull(gens, coef, result):
+					changed = True
+			print " changed", changed
+			orig = result
+
+		# Now expand any blobs we might have produced
+		print "Expand"
+		changed = True
+		while changed:
+			result = Subspace()
+			changed = False
+			for gens, coef in orig.items():
+				if expand(gens, coef, result):
+					changed = True
+			orig = result
+
 		return result
 
 
