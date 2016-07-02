@@ -59,7 +59,7 @@ rewrites = {
 expansions = {
 	"f12": ("f1f2", -1, "f2f1"),
 	"f23": ("f2f3", -1, "f3f2"),
-	"f123": ("f1f23", -1, "f23ff1"),
+	"f123": ("f1f23", -1, "f23f1"),
 }
 
 def printstrs(l):
@@ -384,7 +384,7 @@ class Subspace(Terms):
 
 	# Attempt to rewrite all terms to end in specified suffix monomial
 	def resuffix(self, suffix):
-		print "resuffix", self, "suffix", suffix
+		#print "resuffix", self, "suffix", suffix
 		suflist = tokgens(suffix)
 
 		# Perform a substitution that produces 2 terms from one
@@ -441,8 +441,8 @@ class Subspace(Terms):
 
 			orig = genlist[k] + genlist[k+1]
 			(r1,s2,r2) = rewrites[orig]
-			print " in", "".join(genlist), "item", k
-			print "  rewrite", orig, "->", r1, s2, r2
+			#print " in", "".join(genlist), "item", k
+			#print "  rewrite", orig, "->", r1, s2, r2
 			subst2(coef, genlist[:k], (r1,s2,r2), genlist[k+2:],
 				result)
 			return True
@@ -453,8 +453,8 @@ class Subspace(Terms):
 				if genlist[i] in expansions:
 					changed = True
 					sub2 = expansions[genlist[i]]
-					print " in", "".join(genlist), "item", i
-					print "  expand", genlist[i]
+					#print " in", "".join(genlist), "item", i
+					#print "  expand", genlist[i]
 					subst2(coef, genlist[:i], sub2,
 						genlist[i+1:], result)
 					return True
@@ -468,7 +468,6 @@ class Subspace(Terms):
 		# First tactic: pull singletons rightward,
 		# building blobs as needed to allow them to commute.
 		# Iterate until we can't make any more progress this way.
-		print "Pull"
 		changed = True
 		while changed:
 			result = Subspace()
@@ -476,11 +475,9 @@ class Subspace(Terms):
 			for gens, coef in orig.items():
 				if pull(gens, coef, result):
 					changed = True
-			print " changed", changed
 			orig = result
 
 		# Now expand any blobs we might have produced
-		print "Expand"
 		changed = True
 		while changed:
 			result = Subspace()
@@ -492,9 +489,21 @@ class Subspace(Terms):
 
 		return result
 
+	# Compute an operator by massaging it to match a suffix
+	# then removing the suffix
+	def calcoperator(self, suffix, sign):
+		full = self.resuffix(suffix)
+		clip = len(suffix)
+		result = Subspace()
+		for gens, coef in full.items():
+			assert gens.endswith(suffix)
+			prefix = gens[:len(gens)-clip]
+			result[prefix] = coef * sign
+		return result
 
-op = Subspace("f2f3f3f2")
-print op.resuffix("f2f2f3")
+
+#op = Subspace("f3f3f3f2f2f1")
+#print op.resuffix("f3f3f2")
 
 
 # SL4 for v34
@@ -524,14 +533,30 @@ v46_lengths = [3,4]
 v46_weights = [[0,2,1],[0,1,2],[1,0,1],[2,1,0],[1,2,0]]
 v46_arrows = [
 	(0, "f3"),
-	(0, "-f1f1f1"),		# wrong!?
+	(0, "-f1f1f1"),
 	(0, "3f2f1-2f1f2"),
 	(1, "f2"),
 	(1, "f1f1"),
-	(1, "-(6f3f2f1-4f2f1f3-3f1f3f2+2f1f2f3)"),
-	(2, "(4f1f3f2-2f3f2f1-2f1f2f3+f2f3f1)"),
+	(1, "-(6f3f2f1-4f2f1f3-3f1f3f2+2f1f2f3)"),	# wrong!?
+	(2, "(4f1f3f2-2f3f2f1-2f1f2f3+f2f3f1)"),	# !?
 	(2, "-f2f2f2"),
-	(3, "(6f1f2f3-4f2f1f3-3f1f3f2+2f3f2f1)"),
+	(3, "(6f1f2f3-4f2f1f3-3f1f3f2+2f3f2f1)"),	# !?
+	(3, "f3f3"),
+	(3, "-f2"),
+	(4, "(3f2f3-2f3f2)"),
+	(4, "f3f3f3"),
+	(4, "-f1"),
+]
+v46_arrows = [		# computed operators
+	(0, "f3"),
+	(0, "-(f1f1f1)"),
+	(0, "3f2f1-2f1f2"),
+	(1, "f2"),
+	(1, "f1f1"),
+	(1, "-(-2f1f3f2+6f3f2f1-4f2f3f1+2f1f2f3-f3f1f2)"),
+	(2, "f2f3f1+2f3f1f2-2f1f2f3-2f3f2f1+2f1f3f2"),
+	(2, "-(f2f2f2)"),
+	(3, "-3f1f3f2-2f2f3f1+6f1f2f3-2f2f1f3+2f3f2f1"),
 	(3, "f3f3"),
 	(3, "-f2"),
 	(4, "(3f2f3-2f3f2)"),
@@ -563,6 +588,65 @@ v58_arrows = [
 ]
 v58image_weights = v46_weights
 v58image_arrows = v46_arrows
+
+
+graph = [
+	{ # [0]: v34
+		"f3": [	(+1, "f2f2f3"),
+			(-1, "f3f3f2"),
+			(+1, "f1f3"),
+		],
+		"f2": [	(-1, "f2f2f3"),
+			(+1, "f3f3f2"),
+			(-1, "f1f1f2"),
+			(+1, "f2f2f1"),
+		],
+		"f1": [	(-1, "f1f3"),
+			(+1, "f1f1f2"),
+			(-1, "f2f2f1"),
+		],
+	},
+	{ # [1]: v46
+		"f2f2f3": [
+			(+1, "f2f3f3f2"),
+			(-1, "f1f1f1f2f2f3"),
+			(+1, "f2f2f2f3f1"),
+		],
+		"f3f3f2": [
+			(+1, "f2f3f3f2"),
+			(+1, "f3f3f1f1f2"),
+			(-1, "f3f3f3f2f2f1"),
+		],
+		"f1f3": [
+			(+1, "f3f3f1f1f2"),
+			(-1, "f2f2f2f3f1"),
+		],
+		"f1f1f2": [
+			(+1, "f1f1f1f2f2f3"),
+			(+1, "f3f3f1f1f2"),
+			(-1, "f1f2f2f1"),
+		],
+		"f2f2f1": [
+			(+1, "f2f2f2f3f1"),
+			(+1, "f3f3f3f2f2f1"),
+			(-1, "f1f2f2f1"),
+		],
+	},
+]
+
+operators = {}
+for level in range(len(graph)):
+	print "Level",level,"operators:"
+	for (src, edges) in graph[level].items():
+		w = weight(src)
+		print w	#, "from", src
+		for (sgn, dst) in edges:
+			#print src, sgn, dst
+			subs = Subspace(dst).calcoperator(src, 1)
+			s = str(subs)
+			if sgn < 0:
+				s = "-(" + s + ")"
+			print "\t", s	#, "to", dst
 
 
 class Case:
@@ -614,7 +698,7 @@ def checkcases(level):
 			n = flow(level, b)
 			f = flow(level+1, n)
 
-#checkcases(0)
+checkcases(0)
 
 
 
