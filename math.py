@@ -32,6 +32,36 @@ bgun_map = {
 	"f123":{},
 }
 
+commutes = {
+	"f1": {"f3", "f12", "f123"},
+	"f2": {"f12", "f23", "f123"},
+	"f3": {"f1", "f23", "f123"},
+	"f12": {"f1", "f2", "f123"},
+	"f23": {"f2", "f3", "f123"},
+	"f123": {"f1", "f2", "f3", "f12", "f23", "f123"},
+}
+
+rewrites = {
+	"f1f2": ("f2f1", +1, "f12"),
+	"f2f1": ("f1f2", -1, "f12"),
+	"f2f3": ("f3f2", +1, "f23"),
+	"f3f2": ("f2f3", -1, "f23"),
+	"f1f23": ("f23f1", +1, "f123"),
+	"f23f1": ("f1f23", -1, "f123"),
+	"f12f3": ("f3f12", +1, "f123"),
+	"f3f12": ("f12f3", -1, "f123"),
+	"f1f2f2f1": "f2f1f1f2",
+	"f2f1f1f2": "f1f2f2f1",
+	"f2f3f3f2": "f3f2f2f3",
+	"f3f2f2f3": "f2f3f3f2",
+}
+
+expansions = {
+	"f12": ("f1f2", -1, "f2f1"),
+	"f23": ("f2f3", -1, "f3f2"),
+	"f123": ("f1f23", -1, "f23ff1"),
+}
+
 def printstrs(l):
 	for (coef,str) in l:
 		print coef, str
@@ -45,6 +75,16 @@ def breakgen(str, i):
 			j += 1
 		return j
 	return -1
+
+# Tokenize a string of generators into a list of individual generators
+def tokgens(str):
+	result = []
+	i = 0
+	while i < len(str):
+		j = breakgen(str, i)
+		result = result + [str[i:j]]
+		i = j
+	return result
 
 def weight(s):
 	counts = [0]*rank
@@ -192,12 +232,32 @@ def hit(coef, str, action, results):
 	return reslist[0]
 
 
-class Subspace:
-	def __init__(self, s=""):
+class Terms:
+	def __init__(self):
 		self.terms = {}
+
+	# Return the coefficient for a given generator string, 0 if none
+	def __getitem__(self, gens):
+		return self.terms.get(gens, 0)
+
+	# Set the coefficient for a given generator string, delete if coef==0
+	def __setitem__(self, gens, coef):
+		if coef != 0:
+			self.terms[gens] = coef
+		elif gens in self.terms:
+			del self.terms[gens]
+
+	def items(self):
+		return self.terms.items()
+
+
+class Subspace(Terms):
+	def __init__(self, s=""):
+		Terms.__init__(self)
 		i = 0
 		while i < len(s):
 			(coef, gens, i) = parseterm(s, i)
+			self[gens] = coef
 
 	def __repr__(self):
 		rep = ""
@@ -213,20 +273,6 @@ class Subspace:
 		if rep == "":
 			rep = "0"
 		return rep
-
-	# Return the coefficient for a given generator string, 0 if none
-	def __getitem__(self, gens):
-		return self.terms.get(gens, 0)
-
-	# Set the coefficient for a given generator string, delete if coef==0
-	def __setitem__(self, gens, coef):
-		if coef != 0:
-			self.terms[gens] = coef
-		elif gens in self.terms:
-			del self.terms[gens]
-
-	def items(self):
-		return self.terms.items()
 
 	# Return a new subspace resulting from multiplying self by a scalar
 	def __mul__(self, scalar):
@@ -329,6 +375,93 @@ class Subspace:
 			wts.add(str(weight(gens)))
 		return wts
 
+	# Expand composite f generators to represent based on singletons
+	def expand(self):
+		result = Subspace()
+		for gens, coef in self.items():
+			# XXX
+			return
+
+	# Attempt to rewrite all terms to end in specified suffix monomial
+	def resuffix(self, suffix):
+		print "resuffix", self, "suffix", suffix
+		suflist = tokgens(suffix)
+		result = Subspace()
+		changed = False
+
+		# Perform a substitution that produces 2 terms from one
+		def subst2(coef, pre, sub2, post):
+			(r1,s2,r2) = sub2
+			g1 = "".join(pre + [r1] + post)
+			result[g1] = result[g1] + coef
+			g2 = "".join(pre + [r2] + post)
+			result[g2] = result[g2] + coef*s2
+
+		for gens, coef in self.items():
+			genlist = tokgens(gens)
+
+			# Find last generator that doesn't match the suffix
+			i = len(genlist)-1
+			j = len(suflist)-1
+			while j >= 0 and genlist[i] == suflist[j]:
+				i -= 1
+				j -= 1
+			if j < 0:
+				# Suffix already matches, no rewrite needed
+				result[gens] = result[gens] + coef
+				continue
+			changed = True
+
+			# Now search backwards for the last suitable singleton
+			# that might plausibly be moved into position i
+			# (if it doesn't first get digested into a blob)
+			want = suflist[j]
+			k = i-1
+			while k >= 0 and genlist[k] != want:
+				k -= 1
+
+			# If we couldn't find such a singleton,
+			# then expand blobs in hopes of finding one
+			if k < 0:
+				k = 0
+				while not genlist[k] in expansions:
+					k += 1
+					assert k < i
+				sub2 = expansions[genlist[k]]
+				print " in", "".join(genlist), "item", k
+				print "  expand", genlist[k]
+				subst2(coef, genlist[:k], sub2, genlist[k+1:])
+				continue
+
+			# Move it right as far as commutativity rules allow
+			while k < i and want in commutes[genlist[k+1]]:
+				genlist[k] = genlist[k+1]
+				k += 1
+				genlist[k] = want
+			if k == i:
+				gens = "".join(genlist)
+				result[gens] = result[gens] + coef
+				continue
+
+			# We couldn't commute into the desired position,
+			# so rewrite to merge it into a (bigger) blob,
+			# which will then commute with more stuff
+			# so we'll be able to get something else past it later.
+
+			orig = genlist[k] + genlist[k+1]
+			(r1,s2,r2) = rewrites[orig]
+			print " in", "".join(genlist), "item", k
+			print "  rewrite", orig, "->", r1, s2, r2
+			subst2(coef, genlist[:k], (r1,s2,r2), genlist[k+2:])
+
+		if changed:
+			return result.resuffix(suffix)
+		return result
+
+
+op = Subspace("f2f3f3f2")
+print op.resuffix("f2f2f3")
+
 
 # SL4 for v34
 v34_lengths = [2,3]
@@ -357,7 +490,7 @@ v46_lengths = [3,4]
 v46_weights = [[0,2,1],[0,1,2],[1,0,1],[2,1,0],[1,2,0]]
 v46_arrows = [
 	(0, "f3"),
-	(0, "-f1f1f1"),
+	(0, "-f1f1f1"),		# wrong!?
 	(0, "3f2f1-2f1f2"),
 	(1, "f2"),
 	(1, "f1f1"),
@@ -447,7 +580,8 @@ def checkcases(level):
 			n = flow(level, b)
 			f = flow(level+1, n)
 
-checkcases(0)
+#checkcases(0)
+
 
 
 def calcmatrix(lengths, weights, arrows):
