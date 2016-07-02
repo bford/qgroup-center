@@ -1,6 +1,10 @@
 #!/usr/bin/python
 # coding: utf-8
 
+#import scipy
+#from scipy import linalg, matrix
+from sympy.matrices import Matrix
+
 rank = 3
 fs = ["f1", "f2", "f3", "f12", "f23", "f123"]
 es = ["e1", "e2", "e3", "e12", "e23", "e123"]
@@ -64,7 +68,7 @@ expansions = {
 
 def printstrs(l):
 	for (coef,str) in l:
-		print coef, str
+		print(coef, str)
 
 # Find the end of an f, e, or h token starting at position i in str.
 # Return -1 if no such token starts at position i.
@@ -119,7 +123,7 @@ def strs(n_fs, weights, result):
 
 def printweightstrs(weights, strings):
 	for i in range(len(weights)):
-		print weights[i]
+		print(weights[i])
 		printstrs(strings[i])
 
 # Find the end of a parenthesized expression starting at position i in string s
@@ -226,7 +230,7 @@ def hit(coef, str, action, results):
 		rstr = str[:i] + dst + str[j:]
 		(rcoef,rstr) = sort_fs(rcoef,rstr)
 		if rstr != "":
-			print coef, str, "->", rcoef, rstr
+			print(coef, str, "->", rcoef, rstr)
 			reslist[0] += [(rcoef, rstr)]
 	foreach_feh(str, hit_feh)
 	return reslist[0]
@@ -441,8 +445,8 @@ class Subspace(Terms):
 
 			orig = genlist[k] + genlist[k+1]
 			(r1,s2,r2) = rewrites[orig]
-			#print " in", "".join(genlist), "item", k
-			#print "  rewrite", orig, "->", r1, s2, r2
+			print(" in", "".join(genlist), "item", k)
+			print("  rewrite", orig, "->", r1, s2, r2)
 			subst2(coef, genlist[:k], (r1,s2,r2), genlist[k+2:],
 				result)
 			return True
@@ -453,8 +457,8 @@ class Subspace(Terms):
 				if genlist[i] in expansions:
 					changed = True
 					sub2 = expansions[genlist[i]]
-					#print " in", "".join(genlist), "item", i
-					#print "  expand", genlist[i]
+					print(" in", "".join(genlist),"item",i)
+					print("  expand", genlist[i])
 					subst2(coef, genlist[:i], sub2,
 						genlist[i+1:], result)
 					return True
@@ -493,6 +497,8 @@ class Subspace(Terms):
 	# then removing the suffix
 	def calcoperator(self, suffix, sign):
 		full = self.resuffix(suffix)
+		print("orig:", self, "resuffix", suffix)
+		print("full:", full)
 		clip = len(suffix)
 		result = Subspace()
 		for gens, coef in full.items():
@@ -500,10 +506,6 @@ class Subspace(Terms):
 			prefix = gens[:len(gens)-clip]
 			result[prefix] = coef * sign
 		return result
-
-
-#op = Subspace("f3f3f3f2f2f1")
-#print op.resuffix("f3f3f2")
 
 
 # SL4 for v34
@@ -547,15 +549,17 @@ v46_arrows = [
 	(4, "f3f3f3"),
 	(4, "-f1"),
 ]
-v46_arrows = [		# computed operators
+v46_arrows = [		# computed operators (might be equivalent?)
 	(0, "f3"),
 	(0, "-(f1f1f1)"),
 	(0, "3f2f1-2f1f2"),
 	(1, "f2"),
 	(1, "f1f1"),
 	(1, "-(-2f1f3f2+6f3f2f1-4f2f3f1+2f1f2f3-f3f1f2)"),
+	(2, "2f2f1f2f1+2f1f2f1f2-2f2f1f1f2+2f1f1f2f2-3f1f2f2f1"), #?
 	(2, "f2f3f1+2f3f1f2-2f1f2f3-2f3f2f1+2f1f3f2"),
 	(2, "-(f2f2f2)"),
+	(2, "-(2f2f3f2f3-2f2f3f3f2+2f3f2f3f2+2f3f3f2f2-3f3f2f2f3)"), #?
 	(3, "-3f1f3f2-2f2f3f1+6f1f2f3-2f2f1f3+2f3f2f1"),
 	(3, "f3f3"),
 	(3, "-f2"),
@@ -563,8 +567,6 @@ v46_arrows = [		# computed operators
 	(4, "f3f3f3"),
 	(4, "-f1"),
 ]
-v46image_weights = v34_weights
-v46image_arrows = v34_arrows
 
 # SL4 for v58
 v58_lengths = [4,5]
@@ -586,12 +588,16 @@ v58_arrows = [
 	(5, "f1f1f1"),
 	(5, "(6f3f2f1-4f1f3f2-3f2f1f3+2f1f2f3)"),
 ]
-v58image_weights = v46_weights
-v58image_arrows = v46_arrows
 
 
 graph = [
-	{ # [0]: v34
+	{ # d0
+		"": [	(+1, "f3"),
+			(+1, "f2"),
+			(+1, "f1"),
+		],
+	},
+	{ # d1: v34
 		"f3": [	(+1, "f2f2f3"),
 			(-1, "f3f3f2"),
 			(+1, "f1f3"),
@@ -606,7 +612,7 @@ graph = [
 			(-1, "f2f2f1"),
 		],
 	},
-	{ # [1]: v46
+	{ # d2: v46
 		"f2f2f3": [
 			(+1, "f2f3f3f2"),
 			(-1, "f1f1f1f2f2f3"),
@@ -618,8 +624,10 @@ graph = [
 			(-1, "f3f3f3f2f2f1"),
 		],
 		"f1f3": [
+			(+1, "f1f1f1f2f2f3"),	#?
 			(+1, "f3f3f1f1f2"),
 			(-1, "f2f2f2f3f1"),
+			(-1, "f3f3f3f2f2f1"),	#?
 		],
 		"f1f1f2": [
 			(+1, "f1f1f1f2f2f3"),
@@ -632,21 +640,82 @@ graph = [
 			(-1, "f1f2f2f1"),
 		],
 	},
+	{ # d3
+		"f2f3f3f2": [
+			(+1, "f1f1f1f2f3f3f2"),
+			(+1, "f2f3f3f3f2f2f1"),
+		],
+		"f1f1f1f2f2f3": [
+			(+1, "f1f1f1f2f3f3f2"),
+			(+1, "f1f1f2f2f2f3f1"),
+		],
+		"f3f3f1f1f2": [
+			(-1, "f1f1f1f2f3f3f2"),
+			(+1, "f2f2f2f3f3f1f1f2"),
+			(-1, "f1f3f3f3f2f2f1"),
+		],
+		"f2f2f2f3f1": [
+			(+1, "f2f2f2f3f3f1f1f2"),
+			(+1, "f1f1f2f2f2f3f1"),
+			(-1, "f2f3f3f3f2f2f1"),
+		],
+		"f3f3f3f2f2f1": [
+			(+1, "f2f3f3f3f2f2f1"),
+			(-1, "f1f3f3f3f2f2f1"),
+		],
+		"f1f2f2f1": [
+			(+1, "f1f1f2f2f2f3f1"),
+			(-1, "f1f3f3f3f2f2f1"),
+		],
+	},
+	{ # d4
+		"f1f1f1f2f3f3f2": [
+			(+1, "f2f2f1f1f1f2f3f3f2"),
+			(+1, "f1f1f2f3f3f3f2f2f1"),
+		],
+		"f2f2f2f3f3f1f1f2": [
+			(+1, "f2f2f1f1f1f2f3f3f2"),
+			(+1, "f2f2f3f3f3f1f2f2f1"),
+		],
+		"f1f1f2f2f2f3f1": [
+			(-1, "f2f2f1f1f1f2f3f3f2"),
+			(-1, "f1f1f2f3f3f3f2f2f1"),
+		],
+		"f2f3f3f3f2f2f1": [
+			(-1, "f1f1f2f3f3f3f2f2f1"),
+			(+1, "f2f2f3f3f3f1f2f2f1"),
+		],
+		"f1f3f3f3f2f2f1": [
+			(-1, "f1f1f2f3f3f3f2f2f1"),
+			(+1, "f2f2f3f3f3f1f2f2f1"),
+		],
+	},
+	{ # d5
+		"f2f2f1f1f1f2f3f3f2": [
+			(+1, "f1f2f2f3f3f3f1f2f2f1"),
+		],
+		"f1f1f2f3f3f3f2f2f1": [
+			(-1, "f1f2f2f3f3f3f1f2f2f1"),
+		],
+		"f2f2f3f3f3f1f2f2f1": [
+			(-1, "f1f2f2f3f3f3f1f2f2f1"),
+		],
+	},
 ]
 
 operators = {}
-for level in range(len(graph)):
-	print "Level",level,"operators:"
+for level in range(3):	#len(graph)):
+	print("Level",level,"operators:")
 	for (src, edges) in graph[level].items():
 		w = weight(src)
-		print w	#, "from", src
+		print(w)	#, "from", src
 		for (sgn, dst) in edges:
 			#print src, sgn, dst
 			subs = Subspace(dst).calcoperator(src, 1)
 			s = str(subs)
 			if sgn < 0:
 				s = "-(" + s + ")"
-			print "\t", s	#, "to", dst
+			print("\t", s)	#, "to", dst
 
 
 class Case:
@@ -668,9 +737,9 @@ cases = [
 ]
 
 def checkcases(level):
-	print "Checking cases at level", level
+	print("Checking cases at level", level)
 	def flow(level, subs):
-		print "flow", level, subs
+		print("flow", level, subs)
 		case = cases[level]
 		next = Subspace()
 		ncase = cases[level+1]
@@ -682,23 +751,23 @@ def checkcases(level):
 					base[gens] = coef
 					imag = base.hit_operator(op)
 					imag = imag.reduce()
-					print "  ",base, w, "->", op, "->", imag, imag.weights()
+					print("  ",base, w, "->", op, "->", imag, imag.weights())
 					next = next + imag
-		print "next", next
-		print "weights", next.weights()
+		print("next", next)
+		print("weights", next.weights())
 		return next
 
 	case = cases[level]
 	#for w in range(len(case.weights)):
 	for w in [1]:
 		for (c, g) in case.basis[w]:
-			print "Checking weight", case.weights[w], "basis", c, g
+			print("Checking weight", case.weights[w], "basis", c, g)
 			b = Subspace()
 			b[g] = c
 			n = flow(level, b)
 			f = flow(level+1, n)
 
-checkcases(0)
+#checkcases(0)
 
 
 
@@ -711,39 +780,56 @@ def calcmatrix(lengths, weights, arrows):
 	matdict = {}
 	coldict = {}
 	for (weight, operator) in arrows:
-		print "Hitting weight", weight, "with", operator
+		#print("Hitting weight", weight, "with", operator)
 		for (coef, gens) in strings[weight]:
+			coldict[gens] = 1
 			basis = Subspace()
 			basis[gens] = coef
 			image = basis.hit_operator(operator)
 			image = image.reduce()
-			print basis, "->", image
+			#print(basis, "->", image)
 			for igens, icoef in image.items():
 				row = matdict.get(igens, {})
 				row[gens] = row.get(gens, 0) + icoef
 				matdict[igens] = row
-				coldict[gens] = 1
-	print "rows (unique monomials):"
+
+	'''
+	print("rows (unique monomials):")
 	for key in matdict:
-		print " ", key
-	print "cols (basis elements):"
+		print(" ", key)
+	print("cols (basis elements):")
 	for key in coldict:
-		print " ", key
+		print(" ", key)
+	'''
+
 	matrix = []
 	for rowkey, rowdict in matdict.items():
 		row = []
 		for colkey in coldict:
 			row = row + [rowdict.get(colkey, 0)]
 		matrix = matrix + [row]
-	print len(matrix), "x", len(coldict)
-	print matrix
+	print(len(matrix), "x", len(coldict))
+	M = Matrix(matrix)
+	r = M.rank()
+	n = len(M.nullspace())
+	print("rank", r, "nullspace", n)
+	return (M,r,n)
 
-#calcmatrix(v34_lengths, v34_weights, v34_arrows)
-#calcmatrix(v34_lengths, v34image_weights, v34image_arrows)
+def calcnullspace(name, lengths, kern_weights, kern_arrows,
+			img_weights, img_arrows):
 
-#calcmatrix(v46_lengths, v46_weights, v46_arrows)
-#calcmatrix(v46_lengths, v46image_weights, v46image_arrows)
+	kM,kR,kN = calcmatrix(lengths, kern_weights, kern_arrows)
+	iM,iR,iN = calcmatrix(lengths, img_weights, img_arrows)
 
-#calcmatrix(v58_lengths, v58_weights, v58_arrows)
-#calcmatrix(v58_lengths, v58image_weights, v58image_arrows)
+	print(name, "kernel:", kM.shape, "rank", kR, "nullspace", kN)
+	print(name, "image:", iM.shape, "rank", iR, "nullspace", iN)
+
+	print("Answer:", kN-iR)
+
+
+calcnullspace("v34", v34_lengths, v34_weights, v34_arrows, v34image_weights, v34image_arrows)
+
+calcnullspace("v46", v46_lengths, v46_weights, v46_arrows, v34_weights, v34_arrows)
+
+calcnullspace("v58", v58_lengths, v58_weights, v58_arrows, v46_weights, v46_arrows)
 
