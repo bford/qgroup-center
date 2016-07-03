@@ -294,6 +294,9 @@ class Subspace(Terms):
 		accum(other.terms)
 		return result
 
+	def iszero(self):
+		return len(self.items()) == 0
+
 	# Return a subspace resulting from hitting with an action
 	def hit_action(self, action):
 		result = Subspace()
@@ -374,6 +377,12 @@ class Subspace(Terms):
 			wts.add(weight(gens))
 		return wts
 
+	# Find the weight of this subspace, assuming it has exactly one
+	def weight(self):
+		wts = tuple(self.weights())
+		assert(len(wts) == 1)
+		return wts[0]
+
 	# Expand composite f generators to represent based on singletons
 	def expand(self):
 		result = Subspace()
@@ -383,7 +392,7 @@ class Subspace(Terms):
 
 	# Attempt to rewrite all terms to end in specified suffix monomial
 	def resuffix(self, suffix):
-		print("resuffix", self, "suffix", suffix)
+		#print("resuffix", self, "suffix", suffix)
 		suflist = tokgens(suffix)
 
 		# Perform a substitution that produces 2 terms from one
@@ -440,8 +449,8 @@ class Subspace(Terms):
 
 			orig = genlist[k] + genlist[k+1]
 			(r1,s2,r2) = rewrites[orig]
-			print(" in", "".join(genlist), "item", k)
-			print("  rewrite", orig, "->", r1, s2, r2)
+			#print(" in", "".join(genlist), "item", k)
+			#print("  rewrite", orig, "->", r1, s2, r2)
 			subst2(coef, genlist[:k], (r1,s2,r2), genlist[k+2:],
 				result)
 			return True
@@ -452,8 +461,8 @@ class Subspace(Terms):
 				if genlist[i] in expansions:
 					changed = True
 					sub2 = expansions[genlist[i]]
-					print(" in", "".join(genlist),"item",i)
-					print("  expand", genlist[i])
+					#print(" in", "".join(genlist),"item",i)
+					#print("  expand", genlist[i])
 					subst2(coef, genlist[:i], sub2,
 						genlist[i+1:], result)
 					return True
@@ -492,8 +501,8 @@ class Subspace(Terms):
 	# then removing the suffix
 	def calcoperator(self, suffix, sign):
 		full = self.resuffix(suffix)
-		print("orig:", self, "resuffix", suffix)
-		print("full:", full)
+		#print("orig:", self, "resuffix", suffix)
+		#print("full:", full)
 		clip = len(suffix)
 		result = Subspace()
 		for gens, coef in full.items():
@@ -700,23 +709,10 @@ graph = [
 	},
 ]
 
-operators = {}
-for level in range(3):	#len(graph)):
-	print("Level",level,"operators:")
-	for (src, edges) in graph[level].items():
-		w = weight(src)
-		print(w)	#, "from", src
-		for (sgn, dst) in edges:
-			#print src, sgn, dst
-			subs = Subspace(dst).calcoperator(src, 1)
-			s = str(subs)
-			if sgn < 0:
-				s = "-(" + s + ")"
-			print("\t", s)	#, "to", dst
-
 
 class Case:
-	def __init__(self, name, lengths, weights, arrows):
+	def __init__(self, slen, name, lengths, weights, arrows):
+		self.slen = slen
 		self.name = name
 		self.lengths = lengths
 		self.weights = weights
@@ -726,11 +722,33 @@ class Case:
 		for l in lengths:
 			calcbasis(l, weights, self.basis)
 
+		if slen < 3:	# XXX
+			self.calcoperators()
+
+	def calcoperators(self):
+		level = self.slen
+		self.operators = {}
+		print("Level",level,"operators:")
+		for (src, edges) in graph[level].items():
+			w = weight(src)
+			print(w)	#, "from", src
+			oplist = []
+			for (sgn, dst) in edges:
+				#print src, sgn, dst
+				subs = Subspace(dst).calcoperator(src, 1)
+				s = str(subs)
+				if sgn < 0:
+					s = "-(" + s + ")"
+				print("\t", s)	#, "to", dst
+				oplist = oplist + [(s, weight(dst))]
+			self.operators[w] = oplist
+		#print(self.operators)
+
 
 cases = [
-	Case("v34", v34_lengths, v34_weights, v34_arrows),
-	Case("v46", v46_lengths, v46_weights, v46_arrows),
-	Case("v58", v58_lengths, v58_weights, v58_arrows),
+	Case(1, "v34", v34_lengths, v34_weights, v34_arrows),
+	Case(2, "v46", v46_lengths, v46_weights, v46_arrows),
+	Case(3, "v58", v58_lengths, v58_weights, v58_arrows),
 ]
 
 def checkcases(level):
@@ -766,43 +784,36 @@ def checkcases(level):
 
 #checkcases(0)
 
-def check_parallelograms(level):
-	print("Checking cases at level", level)
-	def flow(level, depth, subs, results):
-		print("flow", level, subs)
-		case = cases[level]
-		for gens, coef in subs.items():
-			w = weight(gens)
-			for (wt, op) in case.arrows:
-				if case.weights[wt] != w:
-					continue
-				base = Subspace()
-				base[gens] = coef
-				imag = base.hit_operator(op)
-				imag = imag.reduce()
-				iwts = imag.weights()
-				assert(len(iwts) == 1)
-				if depth > 1:
-					flow(level+1, depth-1, imag, results)
-					continue
-				rsub = results.get(iwts[0], Subspace())
-				results[iwts[0]] = rsub + imag
+def check_parallelograms(slen):
+	print("Checking cases at level", slen)
+	def flow(slen, depth, base, results):
+		#print("flow", slen, base)
+		wt = base.weight()
+		for (oper, iwt) in cases[slen].operators[wt]:
+			imag = base.hit_operator(oper)
+			if imag.iszero():
+				continue
+			assert(imag.weight() == iwt)
+			if depth > 1:
+				flow(slen+1, depth-1, imag, results)
+			else:
+				rsub = results.get(iwt, Subspace())
+				results[iwt] = rsub + imag
 
-		print("next", next)
-		print("weights", next.weights())
-		return next
-
-	case = cases[level]
-	#for w in range(len(case.weights)):
-	for w in [1]:
+	case = cases[slen]
+	for w in range(len(case.weights)):
 		for (c, g) in case.basis[w]:
 			print("Checking weight", case.weights[w], "basis", c, g)
 			b = Subspace()
 			b[g] = c
 			r = {}
-			n = flow(level, 2, b, r)
+			n = flow(slen, 2, b, r)
+			#print("weight",case.weights[w],"result:", r)
+			for iwt, sub in r.items():
+				assert sub.iszero()
 
-#check_parallelograms(0)
+check_parallelograms(0)
+#check_parallelograms(1)
 
 
 
@@ -870,9 +881,9 @@ def calcnullspace(name, lengths, kern_weights, kern_arrows,
 	print("Answer:", kN-iR)
 
 
-calcnullspace("v34", v34_lengths, v34_weights, v34_arrows, v34image_weights, v34image_arrows)
+#calcnullspace("v34", v34_lengths, v34_weights, v34_arrows, v34image_weights, v34image_arrows)
 
-calcnullspace("v46", v46_lengths, v46_weights, v46_arrows, v34_weights, v34_arrows)
+#calcnullspace("v46", v46_lengths, v46_weights, v46_arrows, v34_weights, v34_arrows)
 
-calcnullspace("v58", v58_lengths, v58_weights, v58_arrows, v46_weights, v46_arrows)
+#calcnullspace("v58", v58_lengths, v58_weights, v58_arrows, v46_weights, v46_arrows)
 
