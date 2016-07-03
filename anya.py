@@ -595,6 +595,21 @@ v58_arrows = [
 	(5, "(6f3f2f1-4f1f3f2-3f2f1f3+2f1f2f3)"),
 ]
 
+# SL4 for v610
+v610_lengths = [5,6]
+v610_weights = [(3,2,2),(2,4,2),(1,3,3),(3,3,1),(2,2,3)]
+v610_arrows = [
+	(0, "f2f2"),
+	(0, "(2f3f2-f2f3)"),
+	(1, "f1"),
+	(1, "f3"),
+	(2, "-(f1f1)"),
+	(2, "(2f2f1-f1f2)"),
+	(3, "-(2f2f3-f3f2)"),
+	(3, "-(f3f3)"),
+	(4, "-(2f1f2-f2f1)"),
+	(4, "f2f2"),
+]
 
 graph = [
 	{ # d0
@@ -886,4 +901,6 @@ def calcnullspace(name, lengths, kern_weights, kern_arrows,
 #calcnullspace("v46", v46_lengths, v46_weights, v46_arrows, v34_weights, v34_arrows)
 
 #calcnullspace("v58", v58_lengths, v58_weights, v58_arrows, v46_weights, v46_arrows)
+
+calcnullspace("v610", v610_lengths, v610_weights, v610_arrows, v58_weights, v58_arrows)
 
