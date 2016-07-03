@@ -102,10 +102,10 @@ def weight(s):
 			delta = 0	# h's count neutrally
 		elif c.isdigit():
 			counts[int(c)-1] += delta
-	return counts
+	return tuple(counts)
 
 # weights is a list of weights of interest
-def strs(n_fs, weights, result):
+def calcbasis(n_fs, weights, result):
 	def all_fs(next, n, prefix):
 		if n == 0:
 			w = weight(prefix)
@@ -120,11 +120,6 @@ def strs(n_fs, weights, result):
 	for e in es:
 		all_fs(0, n_fs, e+"⊗") 
 	return result
-
-def printweightstrs(weights, strings):
-	for i in range(len(weights)):
-		print(weights[i])
-		printstrs(strings[i])
 
 # Find the end of a parenthesized expression starting at position i in string s
 def matchparen(s, i):
@@ -376,7 +371,7 @@ class Subspace(Terms):
 	def weights(self):
 		wts = set()
 		for gens, coef in self.items():
-			wts.add(str(weight(gens)))
+			wts.add(weight(gens))
 		return wts
 
 	# Expand composite f generators to represent based on singletons
@@ -510,7 +505,7 @@ class Subspace(Terms):
 
 # SL4 for v34
 v34_lengths = [2,3]
-v34_weights = [[1,0,0],[0,1,0],[0,0,1]]
+v34_weights = [(1,0,0),(0,1,0),(0,0,1)]
 v34_arrows = [
 	(0, "-f2f2"),
 	(0, "2f1f2-f2f1"),
@@ -523,7 +518,7 @@ v34_arrows = [
 	(2, "-(2f3f2-f2f3)"),
 	(2, "f2f2"),
 ]
-v34image_weights = [[0,0,0]]
+v34image_weights = [(0,0,0)]
 v34image_arrows = [
 	(0, "f1"),
 	(0, "f2"),
@@ -532,7 +527,7 @@ v34image_arrows = [
 
 # SL4 for v46
 v46_lengths = [3,4]
-v46_weights = [[0,2,1],[0,1,2],[1,0,1],[2,1,0],[1,2,0]]
+v46_weights = [(0,2,1),(0,1,2),(1,0,1),(2,1,0),(1,2,0)]
 v46_arrows = [		# Anya's hand-computed
 	(0, "f3"),
 	(0, "-f1f1f1"),
@@ -573,7 +568,7 @@ v46_arrows = [		# computed operators (might be equivalent?)
 # SL4 for v58
 v58_lengths = [4,5]
 #	       s1s3s2  s2s1s3  s3s2s1  s1s2s1  s1s2s3  s3s2s3
-v58_weights = [[2,1,2],[1,3,1],[1,2,3],[2,2,0],[3,2,1],[0,2,2]]
+v58_weights = [(2,1,2),(1,3,1),(1,2,3),(2,2,0),(3,2,1),(0,2,2)]
 v58_arrows = [
 	(0, "-(3f1f2-2f2f1)"),
 	(0, "f2f2f2"),
@@ -729,7 +724,7 @@ class Case:
 
 		self.basis = [[]] * len(weights)
 		for l in lengths:
-			strs(l, weights, self.basis)
+			calcbasis(l, weights, self.basis)
 
 
 cases = [
@@ -771,12 +766,56 @@ def checkcases(level):
 
 #checkcases(0)
 
+def check_parallelograms(level):
+	print("Checking cases at level", level)
+	def flow(level, depth, subs, results):
+		print("flow", level, subs)
+		case = cases[level]
+		for gens, coef in subs.items():
+			w = weight(gens)
+			for (wt, op) in case.arrows:
+				if case.weights[wt] != w:
+					continue
+				base = Subspace()
+				base[gens] = coef
+				imag = base.hit_operator(op)
+				imag = imag.reduce()
+				iwts = imag.weights()
+				assert(len(iwts) == 1)
+				if depth > 1:
+					flow(level+1, depth-1, imag, results)
+					continue
+				rsub = results.get(iwts[0], Subspace())
+				results[iwts[0]] = rsub + imag
+
+		print("next", next)
+		print("weights", next.weights())
+		return next
+
+	case = cases[level]
+	#for w in range(len(case.weights)):
+	for w in [1]:
+		for (c, g) in case.basis[w]:
+			print("Checking weight", case.weights[w], "basis", c, g)
+			b = Subspace()
+			b[g] = c
+			r = {}
+			n = flow(level, 2, b, r)
+
+#check_parallelograms(0)
+
 
 
 def calcmatrix(lengths, weights, arrows):
+
+	def printweightstrs(weights, strings):
+		for i in range(len(weights)):
+			print(weights[i])
+			printstrs(strings[i])
+
 	strings = [[]] * len(weights)
 	for l in lengths:
-		strs(l, weights, strings)
+		calcbasis(l, weights, strings)
 	printweightstrs(weights, strings)
 
 	matdict = {}
