@@ -105,7 +105,9 @@ def weight(s):
 	return tuple(counts)
 
 # weights is a list of weights of interest
-def calcbasis(n_fs, weights, result):
+def calcbasis(nes, lengths, weights):
+	result = [[]] * len(weights)
+
 	def all_fs(next, n, prefix):
 		if n == 0:
 			w = weight(prefix)
@@ -117,9 +119,20 @@ def calcbasis(n_fs, weights, result):
 			str = prefix + fs[i]
 			all_fs(i+1, n-1, str)
 		return
-	for e in es:
-		all_fs(0, n_fs, e+"⊗") 
+
+	for n_fs in lengths:
+		if nes > 0:
+			for e in es:
+				all_fs(0, n_fs, e+"⊗") 
+		else:
+			all_fs(0, n_fs, "")
 	return result
+
+def printbasis(weights, strings):
+	for i in range(len(weights)):
+		print(weights[i])
+		printstrs(strings[i])
+
 
 # Find the end of a parenthesized expression starting at position i in string s
 def matchparen(s, i):
@@ -192,7 +205,11 @@ def sort_fs(coef, str):
 	again = True
 	while again:
 		again = False
-		i = str.index('⊗')+len('⊗')
+		i = str.find('⊗')
+		if i >= 0:
+			i += len('⊗')
+		else:
+			i = 0	# If no tensor product, then contains only f's
 		while i < len(str):
 			# Break out the next two f-tokens
 			j = breakgen(str, i)
@@ -512,6 +529,13 @@ class Subspace(Terms):
 		return result
 
 
+d0_weights = [(0,0,0)]
+d0_arrows = [
+	(0, "f1"),
+	(0, "f2"),
+	(0, "f3"),
+]
+
 # SL4 for v34
 v34_lengths = [2,3]
 v34_weights = [(1,0,0),(0,1,0),(0,0,1)]
@@ -527,13 +551,6 @@ v34_arrows = [
 	(2, "-(2f3f2-f2f3)"),
 	(2, "f2f2"),
 ]
-v34image_weights = [(0,0,0)]
-v34image_arrows = [
-	(0, "f1"),
-	(0, "f2"),
-	(0, "f3"),
-]
-
 # SL4 for v46
 v46_lengths = [3,4]
 v46_weights = [(0,2,1),(0,1,2),(1,0,1),(2,1,0),(1,2,0)]
@@ -732,10 +749,7 @@ class Case:
 		self.lengths = lengths
 		self.weights = weights
 		self.arrows = arrows
-
-		self.basis = [[]] * len(weights)
-		for l in lengths:
-			calcbasis(l, weights, self.basis)
+		self.basis = calcbasis(1, lengths, weights)
 
 		if slen < 3:	# XXX
 			self.calcoperators()
@@ -761,15 +775,16 @@ class Case:
 
 
 cases = [
+	Case(0, "XXX", [1,2], d0_weights, d0_arrows),
 	Case(1, "v34", v34_lengths, v34_weights, v34_arrows),
 	Case(2, "v46", v46_lengths, v46_weights, v46_arrows),
 	Case(3, "v58", v58_lengths, v58_weights, v58_arrows),
 ]
 
-def checkcases(level):
+def checkcases(level, lengths, weights):
 	print("Checking cases at level", level)
 	def flow(level, subs):
-		print("flow", level, subs)
+		#print("flow", level, subs)
 		case = cases[level]
 		next = Subspace()
 		ncase = cases[level+1]
@@ -781,26 +796,28 @@ def checkcases(level):
 					base[gens] = coef
 					imag = base.hit_operator(op)
 					imag = imag.reduce()
-					print("  ",base, w, "->", op, "->", imag, imag.weights())
+					#print("  ",base, w, "->", op, "->", imag, imag.weights())
 					next = next + imag
-		print("next", next)
-		print("weights", next.weights())
 		return next
 
-	case = cases[level]
-	#for w in range(len(case.weights)):
-	for w in [1]:
-		for (c, g) in case.basis[w]:
-			print("Checking weight", case.weights[w], "basis", c, g)
+	#print("checkcases:")
+	basis = calcbasis(1, lengths, weights)
+	#printbasis(weights, basis)
+	for w in range(len(weights)):
+		for (c, g) in basis[w]:
+			#print("Checking weight", weights[w], "basis", c, g)
 			b = Subspace()
 			b[g] = c
 			n = flow(level, b)
 			f = flow(level+1, n)
+			#print("final",f,f.weights())
+			assert(f.iszero())
 
-#checkcases(0)
+for slen in [0,1]:
+	checkcases(slen, cases[slen+1].lengths, cases[slen].weights)
 
 def check_parallelograms(slen):
-	print("Checking cases at level", slen)
+	#print("Checking parallelograms at level", slen)
 	def flow(slen, depth, base, results):
 		#print("flow", slen, base)
 		wt = base.weight()
@@ -816,9 +833,10 @@ def check_parallelograms(slen):
 				results[iwt] = rsub + imag
 
 	case = cases[slen]
+	checked = 0
 	for w in range(len(case.weights)):
 		for (c, g) in case.basis[w]:
-			print("Checking weight", case.weights[w], "basis", c, g)
+			#print("Weight", case.weights[w], "basis", c, g)
 			b = Subspace()
 			b[g] = c
 			r = {}
@@ -826,23 +844,18 @@ def check_parallelograms(slen):
 			#print("weight",case.weights[w],"result:", r)
 			for iwt, sub in r.items():
 				assert sub.iszero()
+			checked += len(r)
+	print("Checked",checked,"parallelograms at level",slen)
 
-check_parallelograms(0)
-#check_parallelograms(1)
-
+for level in range(2):
+	check_parallelograms(level)
 
 
 def calcmatrix(lengths, weights, arrows):
 
-	def printweightstrs(weights, strings):
-		for i in range(len(weights)):
-			print(weights[i])
-			printstrs(strings[i])
-
-	strings = [[]] * len(weights)
-	for l in lengths:
-		calcbasis(l, weights, strings)
-	printweightstrs(weights, strings)
+	strings = calcbasis(1, lengths, weights)
+	#strings = calcbasis(0, [2], weights)	XXX hack for v24
+	printbasis(weights, strings)
 
 	matdict = {}
 	coldict = {}
@@ -895,11 +908,12 @@ def calcnullspace(name, lengths, kern_weights, kern_arrows,
 	print("Answer:", kN-iR)
 
 
-#calcnullspace("v34", v34_lengths, v34_weights, v34_arrows, v34image_weights, v34image_arrows)
+# Hack for v24: use v46 config below, but uncomment special calcbasis call
+# in calcmatrix above
 
-#calcnullspace("v46", v46_lengths, v46_weights, v46_arrows, v34_weights, v34_arrows)
 
+#calcnullspace("v34", v34_lengths, v34_weights, v34_arrows, d0_weights, d0_arrows)
+calcnullspace("v46", v46_lengths, v46_weights, v46_arrows, v34_weights, v34_arrows)
 #calcnullspace("v58", v58_lengths, v58_weights, v58_arrows, v46_weights, v46_arrows)
-
-calcnullspace("v610", v610_lengths, v610_weights, v610_arrows, v58_weights, v58_arrows)
+#calcnullspace("v610", v610_lengths, v610_weights, v610_arrows, v58_weights, v58_arrows)
 
