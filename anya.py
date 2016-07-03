@@ -878,9 +878,8 @@ def calcmatrix(lengths, weights, arrows):
 	print(len(matrix), "x", len(coldict))
 	M = Matrix(matrix)
 	r = M.rank()
-	N = M.nullspace()
-	#print("nullspace",N)
-	n = len(N)
+	#print("nullspace", M.nullspace())
+	n = len(coldict)-r
 	print("rank", r, "nullspace", n)
 	return (M,r,n)
 
