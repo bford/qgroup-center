@@ -24,7 +24,8 @@ action_f3 = {	"e3":(-1,"h3"), "e23":(1,"e2"), "e123":(1,"e12"),
 
 actions = {"f1":action_f1, "f2":action_f2, "f3":action_f3}
 
-bgun_map = {
+reduction_null = False	# if True, just replace h's with zeros
+reduction_map = {
 	"h1":{"e1⊗f1":2,"e2⊗f2":-1,"e12⊗f12":1,"e23⊗f23":-1,"e123⊗f123":1},
 	"h2":{"e1⊗f1":-1,"e2⊗f2":2,"e3⊗f3":-1,"e12⊗f12":1,"e23⊗f23":1},
 	"h3":{"e2⊗f2":-1,"e3⊗f3":2,"e12⊗f12":-1,"e23⊗f23":1,"e123⊗f123":1},
@@ -378,7 +379,9 @@ class Subspace(Terms):
 			i = gens.find("⊗")
 			assert i > 0
 			j = i+len("⊗")
-			conv = bgun_map[gens[:i]]
+			conv = reduction_map[gens[:i]]
+			if reduction_null:
+				conv = {}
 			tail = gens[j:]
 			for cgens, ccoef in conv.items():
 				cgens = cgens + tail
@@ -916,8 +919,8 @@ def calcnullspace(name, lengths, kern_weights, kern_arrows,
 # in calcmatrix above
 
 
-calcnullspace("v34", v34_lengths, v34_weights, v34_arrows, d0_weights, d0_arrows)
-#calcnullspace("v46", v46_lengths, v46_weights, v46_arrows, v34_weights, v34_arrows)
+#calcnullspace("v34", v34_lengths, v34_weights, v34_arrows, d0_weights, d0_arrows)
+calcnullspace("v46", v46_lengths, v46_weights, v46_arrows, v34_weights, v34_arrows)
 #calcnullspace("v58", v58_lengths, v58_weights, v58_arrows, v46_weights, v46_arrows)
 #calcnullspace("v610", v610_lengths, v610_weights, v610_arrows, v58_weights, v58_arrows)
 
