@@ -561,10 +561,10 @@ v46_arrows = [		# Anya's hand-computed
 	(1, "f2"),
 	(1, "f1f1"),
 	(1, "-(6f3f2f1-4f2f1f3-3f1f3f2+2f1f2f3)"),
-	(2, "f1f1f2f2+4f1f2f1f2+2f2f1f2f1-4f2f1f1f2-2f1f2f2f1"),
+	(2, "f1f1f2f2+4f1f2f1f2+2f2f1f2f1-6f1f2f2f1"),
 	(2, "(4f1f3f2-2f3f2f1-2f1f2f3+f2f3f1)"),
 	(2, "-f2f2f2"),
-#	(2, XXX
+	(2, "-(f3f3f2f2+4f3f2f3f2+2f2f3f2f3-6f3f2f2f3)",),
 	(3, "(6f1f2f3-4f2f1f3-3f1f3f2+2f3f2f1)"),
 	(3, "f3f3"),
 	(3, "-f2"),
@@ -606,10 +606,12 @@ v58_arrows = [
 	(2, "-f1"),
 	(3, "(6f1f2f3-4f1f3f2-3f2f1f3+2f3f2f1)"),
 	(3, "-f3f3f3"),
+	(3, "(f2f2f3f3+4f2f3f2f3+2f3f2f3f2-6f2f3f3f2)"),
 	(4, "f3"),
 	(4, "f2"),
 	(5, "f1f1f1"),
 	(5, "(6f3f2f1-4f1f3f2-3f2f1f3+2f1f2f3)"),
+	(5, "-(f2f2f1f1+4f2f1f2f1+2f1f2f1f2-6f2f1f1f2)"),
 ]
 
 # SL4 for v610
@@ -860,27 +862,29 @@ def calcmatrix(lengths, weights, arrows):
 	matdict = {}
 	coldict = {}
 	for (weight, operator) in arrows:
-		#print("Hitting weight", weight, "with", operator)
+		print("Hitting weight", weights[weight], "with", operator)
 		for (coef, gens) in strings[weight]:
 			coldict[gens] = 1
 			basis = Subspace()
 			basis[gens] = coef
 			image = basis.hit_operator(operator)
 			image = image.reduce()
-			#print(basis, "->", image)
+			print(basis, "->", image)
 			for igens, icoef in image.items():
 				row = matdict.get(igens, {})
 				row[gens] = row.get(gens, 0) + icoef
 				matdict[igens] = row
+				print("row",igens,":",row)
 
-	'''
 	print("rows (unique monomials):")
 	for key in matdict:
 		print(" ", key)
 	print("cols (basis elements):")
 	for key in coldict:
 		print(" ", key)
-	'''
+	print("matrix:")
+	for gens,row in matdict.items():
+		print(" ", gens, ":", row)
 
 	matrix = []
 	for rowkey, rowdict in matdict.items():
@@ -912,8 +916,8 @@ def calcnullspace(name, lengths, kern_weights, kern_arrows,
 # in calcmatrix above
 
 
-#calcnullspace("v34", v34_lengths, v34_weights, v34_arrows, d0_weights, d0_arrows)
-calcnullspace("v46", v46_lengths, v46_weights, v46_arrows, v34_weights, v34_arrows)
+calcnullspace("v34", v34_lengths, v34_weights, v34_arrows, d0_weights, d0_arrows)
+#calcnullspace("v46", v46_lengths, v46_weights, v46_arrows, v34_weights, v34_arrows)
 #calcnullspace("v58", v58_lengths, v58_weights, v58_arrows, v46_weights, v46_arrows)
 #calcnullspace("v610", v610_lengths, v610_weights, v610_arrows, v58_weights, v58_arrows)
 
