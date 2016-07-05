@@ -383,11 +383,24 @@ class Subspace(Terms):
 			if reduction_null:
 				conv = {}
 			tail = gens[j:]
+			rmap = gens + " = "
 			for cgens, ccoef in conv.items():
 				cgens = cgens + tail
 				(ccoef, cgens) = sort_fs(ccoef, cgens)
+
+				if ccoef > 1:
+					rmap = rmap + "+" + str(ccoef) + cgens
+				elif ccoef == 1:
+					rmap = rmap + "+" + cgens
+				elif ccoef == -1:
+					rmap = rmap + "-" + cgens
+				elif ccoef < -1:
+					rmap = rmap + str(ccoef) + cgens
+
 				ccoef = ccoef * coef
 				result[cgens] = result[cgens] + ccoef
+			print(" rmap", rmap)
+
 		return result
 
 	# Find the set of monomial weights a subspace is comprised of
@@ -870,9 +883,11 @@ def calcmatrix(lengths, weights, arrows):
 			coldict[gens] = 1
 			basis = Subspace()
 			basis[gens] = coef
-			image = basis.hit_operator(operator)
-			image = image.reduce()
-			print(basis, "->", image)
+			print(basis, ":")
+			hitted = basis.hit_operator(operator)
+			print(" hit->", hitted)
+			image = hitted.reduce()
+			print(" red->", image)
 			for igens, icoef in image.items():
 				row = matdict.get(igens, {})
 				row[gens] = row.get(gens, 0) + icoef
