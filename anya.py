@@ -91,6 +91,19 @@ def tokgens(str):
 		i = j
 	return result
 
+# Return number of f's in an expression after the tensor product
+def flength(str):
+	i = str.find('⊗')
+	if i >= 0:
+		i += len('⊗')
+	nfs = 0
+	while i < len(str):
+		nfs += 1
+		i = breakgen(str, i)
+		if i < 0:
+			break
+	return nfs
+
 def weight(s):
 	counts = [0]*rank
 	delta = 0
@@ -369,7 +382,8 @@ class Subspace(Terms):
 		return rsum
 
 	# Reduce a subspace by eliminating monomials starting with 'f' or 'h'
-	def reduce(self):
+	def reduce(self, lengths):
+		maxlength = lengths[len(lengths)-1]
 		result = Subspace()
 		for gens, coef in self.items():
 			if gens[0] == 'e':
@@ -380,7 +394,8 @@ class Subspace(Terms):
 			assert i > 0
 			j = i+len("⊗")
 			conv = reduction_map[gens[:i]]
-			if reduction_null:
+			#print("gens",gens,"flen",flength(gens),"max",maxlength)
+			if reduction_null or (flength(gens) == maxlength):
 				conv = {}
 			tail = gens[j:]
 			rmap = gens + " = "
@@ -813,7 +828,7 @@ def checkcases(level, lengths, weights):
 					base = Subspace()
 					base[gens] = coef
 					imag = base.hit_operator(op)
-					imag = imag.reduce()
+					imag = imag.reduce(lengths)
 					#print("  ",base, w, "->", op, "->", imag, imag.weights())
 					next = next + imag
 		return next
@@ -886,7 +901,7 @@ def calcmatrix(lengths, weights, arrows):
 			print(basis, ":")
 			hitted = basis.hit_operator(operator)
 			print(" hit->", hitted)
-			image = hitted.reduce()
+			image = hitted.reduce(lengths)
 			print(" red->", image)
 			for igens, icoef in image.items():
 				row = matdict.get(igens, {})
@@ -934,8 +949,8 @@ def calcnullspace(name, lengths, kern_weights, kern_arrows,
 # in calcmatrix above
 
 
-#calcnullspace("v34", v34_lengths, v34_weights, v34_arrows, d0_weights, d0_arrows)
+calcnullspace("v34", v34_lengths, v34_weights, v34_arrows, d0_weights, d0_arrows)
 calcnullspace("v46", v46_lengths, v46_weights, v46_arrows, v34_weights, v34_arrows)
-#calcnullspace("v58", v58_lengths, v58_weights, v58_arrows, v46_weights, v46_arrows)
-#calcnullspace("v610", v610_lengths, v610_weights, v610_arrows, v58_weights, v58_arrows)
+calcnullspace("v58", v58_lengths, v58_weights, v58_arrows, v46_weights, v46_arrows)
+calcnullspace("v610", v610_lengths, v610_weights, v610_arrows, v58_weights, v58_arrows)
 
