@@ -29,7 +29,6 @@ action_f3 = {	"e3":(-1,"h3"), "e23":(1,"e2"), "e123":(1,"e12"),
 
 actions = {"f1":action_f1, "f2":action_f2, "f3":action_f3}
 
-reduction_null = False	# if True, just replace h's with zeros
 reduction_map = {
 	"h1":{"e1⊗f1":2,"e2⊗f2":-1,"e12⊗f12":1,"e23⊗f23":-1,"e123⊗f123":1},
 	"h2":{"e1⊗f1":-1,"e2⊗f2":2,"e3⊗f3":-1,"e12⊗f12":1,"e23⊗f23":1},
@@ -82,6 +81,14 @@ def breakgen(str, i):
 			j += 1
 		return j
 	return -1
+
+# Find a symmetry combiner starting at position i in str.
+# Return '' if none, which we take to mean implicit exterior product.
+def breaksym(str, i):
+	for sym in [tprod,eprod,sprod]:
+		if str.startswith(sym, i):
+			return (sym, i+len(sym))
+	return ('', i)
 
 # Tokenize a string of generators into a list of individual generators
 def tokgens(str):
@@ -230,63 +237,49 @@ def foreach_feh(str, f):
 		if j > 0:
 			f(i, j)
 
-# Create a dictionary ordering the elements of an array
-def orddict(l):
-	dict = {}
+# Fill a dictionary with the numeric rank-orders of the elements of an array
+def orddict(l, dict):
 	for i in range(len(l)):
 		dict[l[i]] = i
-	return dict
 
-# Create order dictionaries for f list
-ford = orddict(fs)
+# Create order dictionary for generator lists.
+# No ordering is relevant for different generators (e's vs f's),
+# so we just combine the respective dictionaries.
+ords = {}
+orddict(es, ords)
+orddict(fs, ords)
+orddict(hs, ords)
 
-# Sort the f-tokens into standard order, adjusting coefficient sign as needed,
-# and dropping terms containing duplicate f-tokens.
-def sort_fs(coef, str):
+# Sort generators as allowed by the relevant symmetries,
+# adjusting coefficient sign and dropping zero terms as needed.
+def sortgens(coef, str):
+	ocoef,ostr = coef,str
 	again = True
 	while again:
 		again = False
-		i = str.find('⊗')
-		if i >= 0:
-			i += len('⊗')
-		else:
-			i = 0	# If no tensor product, then contains only f's
+		i = 0
 		while i < len(str):
-			# Break out the next two f-tokens
+			# Break out the next two generators
 			j = breakgen(str, i)
 			if j < 0:
 				break
-			k = breakgen(str, j)
+			(sym,s) = breaksym(str, j)
+			k = breakgen(str, s)
 			if k < 0:
 				break
-			fa = str[i:j]
-			fb = str[j:k]
-			if fa == fb:
+			ga = str[i:j]
+			gb = str[s:k]
+			if (ga == gb) and (sym == '' or sym == eprod):
 				return (0,"")	# whole term gets dropped
-			if ford[fa] > ford[fb]:
-				str = str[:i] + fb + fa + str[k:]
-				j = i+len(fb)	# fix position of second f
-				coef = -coef	# each swap changes coef sign
+			if (sym != tprod) and (ords[ga] > ords[gb]):
+				str = str[:i] + gb + sym + ga + str[k:]
+				s = i+len(gb)+len(sym)	# next start position
+				if sym != sprod:
+					coef = -coef	# swap changes coef sign
 				again = True	# iterate until settled
-			i = j
+			i = s
+	#print("Sort:",ocoef,ostr,"->",coef,str)
 	return (coef,str)
-
-def hit(coef, str, action, results):
-	reslist = [results]
-	def hit_feh(i, j):
-		src = str[i:j]
-		coefdst = action.get(src, 0)
-		if coefdst == 0:
-			return
-		(rcoef,dst) = coefdst
-		rcoef *= coef
-		rstr = str[:i] + dst + str[j:]
-		(rcoef,rstr) = sort_fs(rcoef,rstr)
-		if rstr != "":
-			print(coef, str, "->", rcoef, rstr)
-			reslist[0] += [(rcoef, rstr)]
-	foreach_feh(str, hit_feh)
-	return reslist[0]
 
 
 class Terms:
@@ -356,7 +349,7 @@ class Subspace(Terms):
 		return len(self.items()) == 0
 
 	# Return a subspace resulting from hitting with an action
-	def hit_action(self, action):
+	def hit_action(self, action, hzero):
 		result = Subspace()
 		for gens, coef in self.items():
 			def hitgen(i, j):
@@ -365,9 +358,11 @@ class Subspace(Terms):
 				if coefdst == 0:
 					return
 				(rcoef,dst) = coefdst
+				if hzero and dst[0] == 'h':
+					return	# all h's become zero
 				rcoef *= coef
 				rgens = gens[:i] + dst + gens[j:]
-				(rcoef,rgens) = sort_fs(rcoef,rgens)
+				(rcoef,rgens) = sortgens(rcoef,rgens)
 				if rgens != "":
 					#print coef, gens, "->", rcoef, rgens
 					result[rgens] = result[rgens] + rcoef
@@ -375,7 +370,7 @@ class Subspace(Terms):
 		return result
 
 	# Return subspace resulting from hitting with a co-boundary operator
-	def hit_operator(self, oper):
+	def hit_operator(self, oper, hzero):
 
 		def primexpr(basis, i):
 			if i >= len(oper):
@@ -383,13 +378,14 @@ class Subspace(Terms):
 			elif oper[i] == '(':
 				j = matchparen(oper, i)
 				(image, k) = primexpr(basis, j)
-				return (image.hit_operator(oper[i+1:j-1]), k)
+				r = image.hit_operator(oper[i+1:j-1], hzero)
+				return (r, k)
 			elif oper[i] == 'f':
 				j = breakgen(oper, i)
 				assert j > i
 				(image, k) = primexpr(basis, j)
 				action = actions[oper[i:j]]
-				return (image.hit_action(action), k)
+				return (image.hit_action(action, hzero), k)
 			else:
 				return (basis, i)
 
@@ -422,13 +418,13 @@ class Subspace(Terms):
 			j = i+len("⊗")
 			conv = reduction_map[gens[:i]]
 			#print("gens",gens,"flen",flength(gens),"max",maxlength)
-			if reduction_null or (flength(gens) == maxlength):
+			if flength(gens) == maxlength:
 				conv = {}
 			tail = gens[j:]
 			rmap = gens + " = "
 			for cgens, ccoef in conv.items():
 				cgens = cgens + tail
-				(ccoef, cgens) = sort_fs(ccoef, cgens)
+				(ccoef, cgens) = sortgens(ccoef, cgens)
 
 				if ccoef > 1:
 					rmap = rmap + "+" + str(ccoef) + cgens
@@ -875,7 +871,7 @@ def checkcases(level, lengths, weights):
 				if case.weights[wt] == w:
 					base = Subspace()
 					base[gens] = coef
-					imag = base.hit_operator(op)
+					imag = base.hit_operator(op, False)
 					imag = imag.reduce(lengths)
 					#print("  ",base, w, "->", op, "->", imag, imag.weights())
 					next = next + imag
@@ -903,7 +899,7 @@ def check_parallelograms(slen):
 		#print("flow", slen, base)
 		wt = base.weight()
 		for (oper, iwt) in cases[slen].operators[wt]:
-			imag = base.hit_operator(oper)
+			imag = base.hit_operator(oper, False)
 			if imag.iszero():
 				continue
 			assert(imag.weight() == iwt)
@@ -932,7 +928,7 @@ def check_parallelograms(slen):
 #	check_parallelograms(level)
 
 
-def calcmatrix(lengths, weights, arrows):
+def calcmatrix(lengths, weights, arrows, hzero):
 
 	strings = calcbasis(lengths, weights)
 	#printbasis(weights, strings)
@@ -945,16 +941,16 @@ def calcmatrix(lengths, weights, arrows):
 			coldict[gens] = 1
 			basis = Subspace()
 			basis[gens] = coef
-			#print(basis, ":")
-			hitted = basis.hit_operator(operator)
-			#print(" hit->", hitted)
+			print(basis, ":")
+			hitted = basis.hit_operator(operator, hzero)
+			print(" hit->", hitted)
 			image = hitted.reduce(lengths)
-			#print(" red->", image)
+			print(" red->", image)
 			for igens, icoef in image.items():
 				row = matdict.get(igens, {})
 				row[gens] = row.get(gens, 0) + icoef
 				matdict[igens] = row
-				#print("row",igens,":",row)
+				print("row",igens,":",row)
 
 	'''
 	print("rows (unique monomials):")
@@ -983,12 +979,12 @@ def calcmatrix(lengths, weights, arrows):
 	return (M,r,n)
 
 def calcnullspace(name, lengths, kern_weights, kern_arrows,
-			img_weights, img_arrows):
+			img_weights, img_arrows, hzero):
 
 	print("\nModule:",name)
 
-	kM,kR,kN = calcmatrix(lengths, kern_weights, kern_arrows)
-	iM,iR,iN = calcmatrix(lengths, img_weights, img_arrows)
+	kM,kR,kN = calcmatrix(lengths, kern_weights, kern_arrows, hzero)
+	iM,iR,iN = calcmatrix(lengths, img_weights, img_arrows, hzero)
 
 	print(name, "kernel:", kM.shape, "rank", kR, "nullspace", kN)
 	print(name, "image:", iM.shape, "rank", iR, "nullspace", iN)
@@ -996,11 +992,24 @@ def calcnullspace(name, lengths, kern_weights, kern_arrows,
 	print("Answer:", kN-iR)
 
 
-#calcnullspace("v24", v24_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows)
-#calcnullspace("v34", v34_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows)
-#calcnullspace("v46", v46_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows)
-#calcnullspace("v58", v58_lengths, d3_weights, d3_arrows, d2_weights, d2_arrows)
-#calcnullspace("v610", v610_lengths, d4_weights, d4_arrows, d3_weights, d3_arrows)
-#calcnullspace("v56", v56_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows)
-calcnullspace("v68", v68_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows)
+calcnullspace("v24", v24_lengths,
+		d2_weights, d2_arrows, d1_weights, d1_arrows, True)
+
+calcnullspace("v34", v34_lengths,
+		d1_weights, d1_arrows, d0_weights, d0_arrows, False)
+
+calcnullspace("v46", v46_lengths,
+		d2_weights, d2_arrows, d1_weights, d1_arrows, False)
+
+calcnullspace("v58", v58_lengths,
+		d3_weights, d3_arrows, d2_weights, d2_arrows, False)
+
+calcnullspace("v610", v610_lengths,
+		d4_weights, d4_arrows, d3_weights, d3_arrows, False)
+
+calcnullspace("v56", v56_lengths,
+		d1_weights, d1_arrows, d0_weights, d0_arrows, True)
+
+calcnullspace("v68", v68_lengths,
+		d2_weights, d2_arrows, d1_weights, d1_arrows, True)
 
