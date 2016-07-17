@@ -5,6 +5,11 @@
 #from scipy import linalg, matrix
 from sympy.matrices import Matrix
 
+# Combiner strings
+tprod = '⊗'	# tensor product, no symmetry
+eprod = '∧'	# exterior product, antisymmetric
+sprod = '⋅'	# symmetric product
+
 rank = 3
 fs = ["f1", "f2", "f3", "f12", "f23", "f123"]
 es = ["e1", "e2", "e3", "e12", "e23", "e123"]
@@ -67,9 +72,6 @@ expansions = {
 	"f123": ("f1f23", -1, "f23f1"),
 }
 
-def printstrs(l):
-	for (coef,str) in l:
-		print(coef, str)
 
 # Find the end of an f, e, or h token starting at position i in str.
 # Return -1 if no such token starts at position i.
@@ -119,33 +121,58 @@ def weight(s):
 	return tuple(counts)
 
 # weights is a list of weights of interest
-def calcbasis(nes, lengths, weights):
+def calcbasis(lengths, weights):
 	result = [[]] * len(weights)
 
-	def all_fs(next, n, prefix):
+	def enumerate(opers, sym, n, prefix, cont):
 		if n == 0:
-			w = weight(prefix)
-			for i in range(len(weights)):
-				if weights[i] == w:
-					result[i] = result[i] + [(1, prefix)]
+			cont(prefix)
 			return
-		for i in range(next, len(fs)):
-			str = prefix + fs[i]
-			all_fs(i+1, n-1, str)
+		for i in range(len(opers)):
+			str = prefix + opers[i]	# append an operator to prefix
+			if n > 1:
+				str = str + sym
+			if sym == tprod:	# all combinations
+				nextops = opers	
+			elif sym == sprod:	# in-order with duplicates
+				nextops = opers[i:]
+			else:			# in-order without duplicates
+				nextops = opers[i+1:]
+			enumerate(nextops, sym, n-1, str, cont)
 		return
 
-	for n_fs in lengths:
-		if nes > 0:
-			for e in es:
-				all_fs(0, n_fs, e+"⊗") 
-		else:
-			all_fs(0, n_fs, "")
-	return result
+	for l in lengths:
+		n_es = l[0]
+		n_fs = l[1]
+		e_sym = ''		# empty = implicit exterior product
+		if n_es > 1:
+			e_sym = l[2]	# symmetry to apply to e's
 
-def printbasis(weights, strings):
-	for i in range(len(weights)):
-		print(weights[i])
-		printstrs(strings[i])
+		def enum_end(basis):
+			w = weight(basis)
+			for i in range(len(weights)):
+				if weights[i] == w:
+					result[i] = result[i] + [(1, basis)]
+			return
+
+		def enum_fs(prefix):
+			if prefix != '':
+				prefix = prefix + tprod
+			enumerate(fs, '', n_fs, prefix, enum_end)
+
+		def enum_es(prefix):
+			enumerate(es, e_sym, n_es, prefix, enum_fs)
+
+		enum_es("")
+
+	def dump():
+		for i in range(len(weights)):
+			print(weights[i],":",len(result[i]),"elements")
+			for (coef,str) in result[i]:
+				print(' ', coef, str)
+	dump()
+
+	return result
 
 
 # Find the end of a parenthesized expression starting at position i in string s
@@ -383,7 +410,7 @@ class Subspace(Terms):
 
 	# Reduce a subspace by eliminating monomials starting with 'f' or 'h'
 	def reduce(self, lengths):
-		maxlength = lengths[len(lengths)-1]
+		maxlength = lengths[len(lengths)-1][1]	# XXX bad hack
 		result = Subspace()
 		for gens, coef in self.items():
 			if gens[0] == 'e':
@@ -414,7 +441,7 @@ class Subspace(Terms):
 
 				ccoef = ccoef * coef
 				result[cgens] = result[cgens] + ccoef
-			print(" rmap", rmap)
+			#print(" rmap", rmap)
 
 		return result
 
@@ -567,10 +594,8 @@ d0_arrows = [
 	(0, "f3"),
 ]
 
-# SL4 for v34
-v34_lengths = [2,3]
-v34_weights = [(1,0,0),(0,1,0),(0,0,1)]
-v34_arrows = [
+d1_weights = [(1,0,0),(0,1,0),(0,0,1)]
+d1_arrows = [
 	(0, "-f2f2"),
 	(0, "2f1f2-f2f1"),
 	(0, "-f3"),
@@ -582,10 +607,9 @@ v34_arrows = [
 	(2, "-(2f3f2-f2f3)"),
 	(2, "f2f2"),
 ]
-# SL4 for v46
-v46_lengths = [3,4]
-v46_weights = [(0,2,1),(0,1,2),(1,0,1),(2,1,0),(1,2,0)]
-v46_arrows = [		# Anya's hand-computed
+
+d2_weights = [(0,2,1),(0,1,2),(1,0,1),(2,1,0),(1,2,0)]
+d2_arrows = [		# Anya's hand-computed
 	(0, "f3"),
 	(0, "-f1f1f1"),
 	(0, "3f2f1-2f1f2"),
@@ -603,7 +627,7 @@ v46_arrows = [		# Anya's hand-computed
 	(4, "f3f3f3"),
 	(4, "-f1"),
 ]
-v46_arrows = [		# computed operators (might be equivalent?)
+XXd2_arrows = [		# computed operators (might be equivalent?)
 	(0, "f3"),
 	(0, "-(f1f1f1)"),
 	(0, "3f2f1-2f1f2"),
@@ -622,11 +646,8 @@ v46_arrows = [		# computed operators (might be equivalent?)
 	(4, "-f1"),
 ]
 
-# SL4 for v58
-v58_lengths = [4,5]
-#	       s1s3s2  s2s1s3  s3s2s1  s1s2s1  s1s2s3  s3s2s3
-v58_weights = [(2,1,2),(1,3,1),(1,2,3),(2,2,0),(3,2,1),(0,2,2)]
-v58_arrows = [
+d3_weights = [(2,1,2),(1,3,1),(1,2,3),(2,2,0),(3,2,1),(0,2,2)]
+d3_arrows = [
 	(0, "-(3f1f2-2f2f1)"),
 	(0, "f2f2f2"),
 	(0, "-(3f3f2-2f2f3)"),
@@ -645,10 +666,8 @@ v58_arrows = [
 	(5, "-(f2f2f1f1+4f2f1f2f1+2f1f2f1f2-6f2f1f1f2)"),
 ]
 
-# SL4 for v610
-v610_lengths = [5,6]
-v610_weights = [(3,2,2),(2,4,2),(1,3,3),(3,3,1),(2,2,3)]
-v610_arrows = [
+d4_weights = [(3,2,2),(2,4,2),(1,3,3),(3,3,1),(2,2,3)]
+d4_arrows = [
 	(0, "f2f2"),
 	(0, "(2f3f2-f2f3)"),
 	(1, "f1"),
@@ -660,6 +679,35 @@ v610_arrows = [
 	(4, "-(2f1f2-f2f1)"),
 	(4, "f2f2"),
 ]
+
+# SL4 for v24
+v24_lengths = [(0,2)]	# no e's, two f's
+
+# SL4 for v34
+v34_lengths = [(1,2),(1,3)]	# one e and 2-3 f's
+
+# SL4 for v46
+v46_lengths = [(1,3),(1,4)]	# one e and 3-4 f's
+
+# SL4 for v58
+v58_lengths = [(1,4),(1,5)]	# one e and 4-5 f's 
+#	       s1s3s2  s2s1s3  s3s2s1  s1s2s1  s1s2s3  s3s2s3
+
+# SL4 for v610
+v610_lengths = [(1,5),(1,6)]	# one e and 5-6 f's
+
+# SL4 for v56:
+# (1) two antisymmetric e's and 3 f's
+# (2) two non-symmetric e's and 4 f's
+# (3) two symmetric e's and 5 f's
+v56_lengths = [(2,3,eprod),(2,4,tprod),(2,5,sprod)]
+
+# SL4 for v68:
+# (1) two antisymmetric e's and 3 f's
+# (2) two non-symmetric e's and 4 f's
+# (3) two symmetric e's and 5 f's
+v68_lengths = [(2,4,eprod),(2,5,tprod),(2,6,sprod)]
+
 
 graph = [
 	{ # d0
@@ -782,7 +830,7 @@ class Case:
 		self.lengths = lengths
 		self.weights = weights
 		self.arrows = arrows
-		self.basis = calcbasis(1, lengths, weights)
+		self.basis = calcbasis(lengths, weights)
 
 		if slen < 3:	# XXX
 			self.calcoperators()
@@ -808,10 +856,10 @@ class Case:
 
 
 cases = [
-	Case(0, "XXX", [1,2], d0_weights, d0_arrows),
-	Case(1, "v34", v34_lengths, v34_weights, v34_arrows),
-	Case(2, "v46", v46_lengths, v46_weights, v46_arrows),
-	Case(3, "v58", v58_lengths, v58_weights, v58_arrows),
+	Case(0, "XXX", [(1,1),(1,2)], d0_weights, d0_arrows),
+	Case(1, "v34", v34_lengths, d1_weights, d1_arrows),
+	Case(2, "v46", v46_lengths, d2_weights, d2_arrows),
+	Case(3, "v58", v58_lengths, d3_weights, d3_arrows),
 ]
 
 def checkcases(level, lengths, weights):
@@ -834,7 +882,7 @@ def checkcases(level, lengths, weights):
 		return next
 
 	#print("checkcases:")
-	basis = calcbasis(1, lengths, weights)
+	basis = calcbasis(lengths, weights)
 	#printbasis(weights, basis)
 	for w in range(len(weights)):
 		for (c, g) in basis[w]:
@@ -846,8 +894,8 @@ def checkcases(level, lengths, weights):
 			#print("final",f,f.weights())
 			assert(f.iszero())
 
-for slen in [0,1]:
-	checkcases(slen, cases[slen+1].lengths, cases[slen].weights)
+#for slen in [0,1]:
+#	checkcases(slen, cases[slen+1].lengths, cases[slen].weights)
 
 def check_parallelograms(slen):
 	#print("Checking parallelograms at level", slen)
@@ -880,15 +928,14 @@ def check_parallelograms(slen):
 			checked += len(r)
 	print("Checked",checked,"parallelograms at level",slen)
 
-for level in range(2):
-	check_parallelograms(level)
+#for level in range(2):
+#	check_parallelograms(level)
 
 
 def calcmatrix(lengths, weights, arrows):
 
-	strings = calcbasis(1, lengths, weights)
-	#strings = calcbasis(0, [2], weights)	XXX hack for v24
-	printbasis(weights, strings)
+	strings = calcbasis(lengths, weights)
+	#printbasis(weights, strings)
 
 	matdict = {}
 	coldict = {}
@@ -898,17 +945,18 @@ def calcmatrix(lengths, weights, arrows):
 			coldict[gens] = 1
 			basis = Subspace()
 			basis[gens] = coef
-			print(basis, ":")
+			#print(basis, ":")
 			hitted = basis.hit_operator(operator)
-			print(" hit->", hitted)
+			#print(" hit->", hitted)
 			image = hitted.reduce(lengths)
-			print(" red->", image)
+			#print(" red->", image)
 			for igens, icoef in image.items():
 				row = matdict.get(igens, {})
 				row[gens] = row.get(gens, 0) + icoef
 				matdict[igens] = row
-				print("row",igens,":",row)
+				#print("row",igens,":",row)
 
+	'''
 	print("rows (unique monomials):")
 	for key in matdict:
 		print(" ", key)
@@ -918,6 +966,7 @@ def calcmatrix(lengths, weights, arrows):
 	print("matrix:")
 	for gens,row in matdict.items():
 		print(" ", gens, ":", row)
+	'''
 
 	matrix = []
 	for rowkey, rowdict in matdict.items():
@@ -936,6 +985,8 @@ def calcmatrix(lengths, weights, arrows):
 def calcnullspace(name, lengths, kern_weights, kern_arrows,
 			img_weights, img_arrows):
 
+	print("\nModule:",name)
+
 	kM,kR,kN = calcmatrix(lengths, kern_weights, kern_arrows)
 	iM,iR,iN = calcmatrix(lengths, img_weights, img_arrows)
 
@@ -945,12 +996,11 @@ def calcnullspace(name, lengths, kern_weights, kern_arrows,
 	print("Answer:", kN-iR)
 
 
-# Hack for v24: use v46 config below, but uncomment special calcbasis call
-# in calcmatrix above
-
-
-calcnullspace("v34", v34_lengths, v34_weights, v34_arrows, d0_weights, d0_arrows)
-calcnullspace("v46", v46_lengths, v46_weights, v46_arrows, v34_weights, v34_arrows)
-calcnullspace("v58", v58_lengths, v58_weights, v58_arrows, v46_weights, v46_arrows)
-calcnullspace("v610", v610_lengths, v610_weights, v610_arrows, v58_weights, v58_arrows)
+#calcnullspace("v24", v24_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows)
+#calcnullspace("v34", v34_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows)
+#calcnullspace("v46", v46_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows)
+#calcnullspace("v58", v58_lengths, d3_weights, d3_arrows, d2_weights, d2_arrows)
+#calcnullspace("v610", v610_lengths, d4_weights, d4_arrows, d3_weights, d3_arrows)
+#calcnullspace("v56", v56_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows)
+calcnullspace("v68", v68_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows)
 
