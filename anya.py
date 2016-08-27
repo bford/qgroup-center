@@ -15,6 +15,13 @@ fs = ["f1", "f2", "f3", "f12", "f23", "f123"]
 es = ["e1", "e2", "e3", "e12", "e23", "e123"]
 hs = ["h1", "h2", "h3"]
 
+basis_fs = fs
+basis_es = es
+basis_hs = hs
+basis_fs = ["f2", "f12", "f23", "f123"]
+basis_es = ["e2", "e12", "e23", "e123"]
+hitting_gens = basis_fs + es + hs
+
 action_f1 = {	"e1":(-1,"h1"), "e12":(-1,"e2"), "e123":(-1,"e23"),
 		"f2":(1,"f12"), "f23":(1,"f123"),
 		"h1":(2,"f1"), "h2":(-1,"f1") }
@@ -40,6 +47,19 @@ reduction_map = {
 	"f12":{"e3⊗f123":-1},
 	"f23":{"e1⊗f123":1},
 	"f123":{},
+}
+reduction_map = {
+	"h1":{"e2⊗f2":-1,"e12⊗f12":1,"e23⊗f23":-1,"e123⊗f123":1},
+	"h2":{"e2⊗f2":2,"e12⊗f12":1,"e23⊗f23":1},
+	"h3":{"e2⊗f2":-1,"e12⊗f12":-1,"e23⊗f23":1,"e123⊗f123":1},
+	"f1":{"e2⊗f12":-1,"e23⊗f123":-1},
+	"f2":{},
+	"f3":{"e2⊗f23":1,"e12⊗f123":1},
+	"f12":{},
+	"f23":{},
+	"f123":{},
+	"e1":{"e12⊗f2":-1,"e123⊗f23":-1},
+	"e3":{"e23⊗f2":1,"e123⊗f12":1},
 }
 
 commutes = {
@@ -158,10 +178,10 @@ def calcbasis(lengths, weights):
 		def enum_fs(prefix):
 			if prefix != '':
 				prefix = prefix + tprod
-			enumerate(fs, '', n_fs, prefix, enum_end)
+			enumerate(basis_fs, '', n_fs, prefix, enum_end)
 
 		def enum_es(prefix):
-			enumerate(es, e_sym, n_es, prefix, enum_fs)
+			enumerate(basis_es, e_sym, n_es, prefix, enum_fs)
 
 		enum_es("")
 
@@ -365,11 +385,14 @@ class Subspace(Terms):
 				if coefdst == 0:
 					return
 				(rcoef,dst) = coefdst
+				if i > 0 and not dst in hitting_gens:
+					print("drop", coef, gens, "->", dst)
+					return
 				rcoef *= coef
 				rgens = gens[:i] + dst + gens[j:]
 				(rcoef,rgens) = sort_fs(rcoef,rgens)
 				if rgens != "":
-					#print coef, gens, "->", rcoef, rgens
+					print(coef, gens, "->", rcoef, rgens)
 					result[rgens] = result[rgens] + rcoef
 			foreach_feh(gens, hitgen)
 		return result
@@ -413,14 +436,13 @@ class Subspace(Terms):
 		maxlength = lengths[len(lengths)-1][1]	# XXX bad hack
 		result = Subspace()
 		for gens, coef in self.items():
-			if gens[0] == 'e':
-				result[gens] = result[gens] + coef
-				continue
-			assert gens[0] == 'f' or gens[0] == 'h'
 			i = gens.find("⊗")
 			assert i > 0
 			j = i+len("⊗")
-			conv = reduction_map[gens[:i]]
+			conv = reduction_map.get(gens[:i], 0)
+			if conv == 0:
+				result[gens] = result[gens] + coef
+				continue
 			#print("gens",gens,"flen",flength(gens),"max",maxlength)
 			if reduction_null or (flength(gens) == maxlength):
 				conv = {}
@@ -947,14 +969,14 @@ def calcmatrix(lengths, weights, arrows):
 			basis[gens] = coef
 			#print(basis, ":")
 			hitted = basis.hit_operator(operator)
-			#print(" hit->", hitted)
+			print(" hit->", hitted)
 			image = hitted.reduce(lengths)
-			#print(" red->", image)
+			print(" red->", image)
 			for igens, icoef in image.items():
 				row = matdict.get(igens, {})
 				row[gens] = row.get(gens, 0) + icoef
 				matdict[igens] = row
-				#print("row",igens,":",row)
+				print("row",igens,":",row)
 
 	'''
 	print("rows (unique monomials):")
@@ -997,10 +1019,10 @@ def calcnullspace(name, lengths, kern_weights, kern_arrows,
 
 
 #calcnullspace("v24", v24_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows)
-#calcnullspace("v34", v34_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows)
+calcnullspace("v34", v34_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows)
 #calcnullspace("v46", v46_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows)
 #calcnullspace("v58", v58_lengths, d3_weights, d3_arrows, d2_weights, d2_arrows)
 #calcnullspace("v610", v610_lengths, d4_weights, d4_arrows, d3_weights, d3_arrows)
 #calcnullspace("v56", v56_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows)
-calcnullspace("v68", v68_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows)
+#calcnullspace("v68", v68_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows)
 
