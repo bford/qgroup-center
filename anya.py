@@ -339,7 +339,7 @@ class Subspace(Terms):
 		return len(self.items()) == 0
 
 	# Return a subspace resulting from hitting with an action
-	def hit_action(self, action, hzero):
+	def hit_action(self, action, elim):
 		result = Subspace()
 		for gens, coef in self.items():
 			def hitgen(i, j):
@@ -348,8 +348,8 @@ class Subspace(Terms):
 				if coefdst == 0:
 					return
 				(rcoef,dst) = coefdst
-				if hzero and dst[0] == 'h':
-					return	# all h's become zero
+				if dst in elim:
+					return	# eliminated gens become zero
 				rcoef *= coef
 				rgens = gens[:i] + dst + gens[j:]
 				(rcoef,rgens) = sortgens(rcoef,rgens)
@@ -360,7 +360,7 @@ class Subspace(Terms):
 		return result
 
 	# Return subspace resulting from hitting with a co-boundary operator
-	def hit_operator(self, oper, hzero):
+	def hit_operator(self, oper, elim):
 
 		def primexpr(basis, i):
 			if i >= len(oper):
@@ -368,14 +368,14 @@ class Subspace(Terms):
 			elif oper[i] == '(':
 				j = matchparen(oper, i)
 				(image, k) = primexpr(basis, j)
-				r = image.hit_operator(oper[i+1:j-1], hzero)
+				r = image.hit_operator(oper[i+1:j-1], elim)
 				return (r, k)
 			elif oper[i] == 'f':
 				j = breakgen(oper, i)
 				assert j > i
 				(image, k) = primexpr(basis, j)
 				action = actions[oper[i:j]]
-				return (image.hit_action(action, hzero), k)
+				return (image.hit_action(action, elim), k)
 			else:
 				return (basis, i)
 
@@ -927,18 +927,10 @@ reduction_map_null = {
 	"f123":{},
 }
 
-def calcmatrix(lengths, weights, arrows, basis_elim, reduction_map):
+def calcmatrix(lengths, weights, arrows, basis_elim, hit_elim, reduction_map):
 
 	strings = calcbasis(lengths, weights, basis_elim)
 	#printbasis(weights, strings)
-
-	# Kinda bad hack.
-	# What actually needs to happen is that in this case
-	# we just use a reduction that zeros any h's that get produced -
-	# but the current reduce method doesn't know how to deal with
-	# multiple items before the tensor product,
-	# so in the multi-items cases we just avoid producing h's at all.
-	hzero = (reduction_map == reduction_map_null)
 
 	matdict = {}
 	coldict = {}
@@ -949,7 +941,7 @@ def calcmatrix(lengths, weights, arrows, basis_elim, reduction_map):
 			basis = Subspace()
 			basis[gens] = coef
 			#print(basis, ":")
-			hitted = basis.hit_operator(operator, hzero)
+			hitted = basis.hit_operator(operator, hit_elim)
 			print(" hit->", hitted)
 			image = hitted.reduce(lengths, reduction_map)
 			print(" red->", image)
@@ -986,14 +978,15 @@ def calcmatrix(lengths, weights, arrows, basis_elim, reduction_map):
 	return (M,r,n)
 
 def calcnullspace(name, lengths, kern_weights, kern_arrows,
-		img_weights, img_arrows, basis_elim, reduction_map, expect):
+		img_weights, img_arrows, basis_elim, hit_elim,
+		reduction_map, expect):
 
 	print("\nModule:",name)
 
 	kM,kR,kN = calcmatrix(lengths, kern_weights, kern_arrows,
-				basis_elim, reduction_map)
+				basis_elim, hit_elim, reduction_map)
 	iM,iR,iN = calcmatrix(lengths, img_weights, img_arrows,
-				basis_elim, reduction_map)
+				basis_elim, hit_elim, reduction_map)
 
 	print(name, "kernel:", kM.shape, "rank", kR, "nullspace", kN)
 	print(name, "image:", iM.shape, "rank", iR, "nullspace", iN)
@@ -1018,19 +1011,19 @@ reduction_map_regular = {
 	"f123":{},
 }
 calcnullspace("v24", v24_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows,
-	[], reduction_map_regular, 5)
+	[], [], reduction_map_regular, 5)
 calcnullspace("v34", v34_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
-	[], reduction_map_regular, 4)
+	[], [], reduction_map_regular, 4)
 calcnullspace("v46", v46_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows,
-	[], reduction_map_regular, 9)
+	[], [], reduction_map_regular, 9)
 calcnullspace("v58", v58_lengths, d3_weights, d3_arrows, d2_weights, d2_arrows,
-	[], reduction_map_regular, 11)
-calcnullspace("v610", v610_lengths, d4_weights, d4_arrows, d3_weights,
-	d3_arrows, [], reduction_map_regular, 8)
+	[], [], reduction_map_regular, 11)
+calcnullspace("v610", v610_lengths, d4_weights, d4_arrows, d3_weights, d3_arrows,
+	[], [], reduction_map_regular, 8)
 calcnullspace("v56", v56_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
-	[], reduction_map_null, 4)
+	[], ["h1", "h2", "h3"], reduction_map_null, 4)
 calcnullspace("v68", v68_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows,
-	[], reduction_map_null, 9)
+	[], ["h1", "h2", "h3"], reduction_map_null, 9)
 
 
 print("\nThe Singular Grassmanian Block")
@@ -1048,13 +1041,13 @@ reduction_map_grassmanian = {
 	"e3":{"e23⊗f2":1,"e123⊗f12":1},
 }
 calcnullspace("v24", v24_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows,
-	["f1","f3","e1","e3"], reduction_map_grassmanian, 2)
+	["f1","f3","e1","e3"], [], reduction_map_grassmanian, 2)
 calcnullspace("v34", v34_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
-	["f1","f3","e1","e3"], reduction_map_grassmanian, 2)
+	["f1","f3","e1","e3"], [], reduction_map_grassmanian, 2)
 calcnullspace("v46", v46_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows,
-	["f1","f3","e1","e3"], reduction_map_grassmanian, 2)
+	["f1","f3","e1","e3"], [], reduction_map_grassmanian, 2)
 calcnullspace("v58", v58_lengths, d3_weights, d3_arrows, d2_weights, d2_arrows,
-	["f1","f3","e1","e3"], reduction_map_grassmanian, 1)
+	["f1","f3","e1","e3"], [], reduction_map_grassmanian, 1)
 
 
 print("\nThe maximal singular block without f1")
@@ -1071,21 +1064,21 @@ reduction_map_max_singular_f1 = {
 	"e1":{"e12⊗f2":-1,"e123⊗f23":-1},
 }
 calcnullspace("v12", v12_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
-	["f1","e1"], reduction_map_max_singular_f1, 2)
+	["f1","e1"], [], reduction_map_max_singular_f1, 2)
 calcnullspace("v24", v24_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows,
-	["f1","e1"], reduction_map_max_singular_f1, 3)
+	["f1","e1"], [], reduction_map_max_singular_f1, 3)
 calcnullspace("v36", v36_lengths, d3_weights, d3_arrows, d2_weights, d2_arrows,
-	["f1","e1"], reduction_map_max_singular_f1, 3)
+	["f1","e1"], [], reduction_map_max_singular_f1, 3)
 calcnullspace("v48", v48_lengths, d4_weights, d4_arrows, d3_weights, d3_arrows,
-	["f1","e1"], reduction_map_max_singular_f1, 2)
+	["f1","e1"], [], reduction_map_max_singular_f1, 2)
 calcnullspace("v34", v34_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
-	["f1","e1"], reduction_map_max_singular_f1, 3)
+	["f1","e1"], [], reduction_map_max_singular_f1, 3)
 calcnullspace("v46", v46_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows,
-	["f1","e1"], reduction_map_max_singular_f1, 5)
+	["f1","e1"], [], reduction_map_max_singular_f1, 5)
 calcnullspace("v58", v58_lengths, d3_weights, d3_arrows, d2_weights, d2_arrows,
-	["f1","e1"], reduction_map_max_singular_f1, 4)
+	["f1","e1"], [], reduction_map_max_singular_f1, 4)
 calcnullspace("v56", v56_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
-	["f1","e1"], reduction_map_null, -1)
+	["f1","e1"], ["h1", "h2", "h3", "e1"], reduction_map_null, 3)
 
 
 print("\nThe maximal singular block without f3")
@@ -1102,21 +1095,21 @@ reduction_map_max_singular_f3 = {
 	"e3":{"e23⊗f2":1,"e123⊗f12":1},
 }
 calcnullspace("v12", v12_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
-	["f3","e3"], reduction_map_max_singular_f3, 2)
+	["f3","e3"], [], reduction_map_max_singular_f3, 2)
 calcnullspace("v24", v24_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows,
-	["f3","e3"], reduction_map_max_singular_f3, 3)
+	["f3","e3"], [], reduction_map_max_singular_f3, 3)
 calcnullspace("v36", v36_lengths, d3_weights, d3_arrows, d2_weights, d2_arrows,
-	["f3","e3"], reduction_map_max_singular_f3, 3)
+	["f3","e3"], [], reduction_map_max_singular_f3, 3)
 calcnullspace("v48", v48_lengths, d4_weights, d4_arrows, d3_weights, d3_arrows,
-	["f3","e3"], reduction_map_max_singular_f3, 2)
+	["f3","e3"], [], reduction_map_max_singular_f3, 2)
 calcnullspace("v34", v34_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
-	["f3","e3"], reduction_map_max_singular_f3, 3)
+	["f3","e3"], [], reduction_map_max_singular_f3, 3)
 calcnullspace("v46", v46_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows,
-	["f3","e3"], reduction_map_max_singular_f3, 5)
+	["f3","e3"], [], reduction_map_max_singular_f3, 5)
 calcnullspace("v58", v58_lengths, d3_weights, d3_arrows, d2_weights, d2_arrows,
-	["f3","e3"], reduction_map_max_singular_f3, 4)
+	["f3","e3"], [], reduction_map_max_singular_f3, 4)
 calcnullspace("v56", v56_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
-	["f3","e3"], reduction_map_null, -1)
+	["f3","e3"], ["h1", "h2", "h3", "e3"], reduction_map_null, 3)
 
 
 print("\nThe maximal singular block without f2")
@@ -1133,19 +1126,20 @@ reduction_map_max_singular_f2 = {
 	"e2":{"e12⊗f1":1,"e23⊗f3":-1},
 }
 calcnullspace("v12", v12_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
-	["f2","e2"], reduction_map_max_singular_f2, 2)
+	["f2","e2"], [], reduction_map_max_singular_f2, 2)
 calcnullspace("v24", v24_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows,
-	["f2","e2"], reduction_map_max_singular_f2, 3)
+	["f2","e2"], [], reduction_map_max_singular_f2, 3)
 calcnullspace("v36", v36_lengths, d3_weights, d3_arrows, d2_weights, d2_arrows,
-	["f2","e2"], reduction_map_max_singular_f2, 3)
+	["f2","e2"], [], reduction_map_max_singular_f2, 3)
 calcnullspace("v48", v48_lengths, d4_weights, d4_arrows, d3_weights, d3_arrows,
-	["f2","e2"], reduction_map_max_singular_f2, 2)
+	["f2","e2"], [], reduction_map_max_singular_f2, 2)
 calcnullspace("v34", v34_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
-	["f2","e2"], reduction_map_max_singular_f2, 3)
+	["f2","e2"], [], reduction_map_max_singular_f2, 3)
 calcnullspace("v46", v46_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows,
-	["f2","e2"], reduction_map_max_singular_f2, 5)
+	["f2","e2"], [], reduction_map_max_singular_f2, 5)
 calcnullspace("v58", v58_lengths, d3_weights, d3_arrows, d2_weights, d2_arrows,
-	["f2","e2"], reduction_map_max_singular_f2, 4)
+	["f2","e2"], [], reduction_map_max_singular_f2, 4)
 calcnullspace("v56", v56_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
-	["f2","e2"], reduction_map_null, -1)
+	["f2","e2"], ["h1", "h2", "h3", "e2"], reduction_map_null, 3)
+
 
