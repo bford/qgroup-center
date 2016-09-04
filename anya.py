@@ -678,16 +678,14 @@ d4_arrows = [
 	(4, "f2f2"),
 ]
 
-# SL4 for v24
+# SL4 for ...
+v12_lengths = [(0,1)]	# no e's, one f
 v24_lengths = [(0,2)]	# no e's, two f's
+v36_lengths = [(0,3)]	# no e's, three f's
+v48_lengths = [(0,4)]	# no e's, four f's
 
-# SL4 for v34
 v34_lengths = [(1,2),(1,3)]	# one e and 2-3 f's
-
-# SL4 for v46
 v46_lengths = [(1,3),(1,4)]	# one e and 3-4 f's
-
-# SL4 for v58
 v58_lengths = [(1,4),(1,5)]	# one e and 4-5 f's 
 #	       s1s3s2  s2s1s3  s3s2s1  s1s2s1  s1s2s3  s3s2s3
 
@@ -1040,6 +1038,7 @@ calcnullspace("v610", v610_lengths, d4_weights, d4_arrows, d3_weights,
 #calcnullspace("v68", v68_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows,
 #	[], reduction_map_null, 9)
 
+
 print("\nThe Singular Grassmanian Block")
 reduction_map_grassmanian = {
 	"h1":{"e2⊗f2":-1,"e12⊗f12":1,"e23⊗f23":-1,"e123⊗f123":1},
@@ -1060,4 +1059,100 @@ calcnullspace("v34", v34_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
 	["f1","f3","e1","e3"], reduction_map_grassmanian, 2)
 calcnullspace("v46", v46_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows,
 	["f1","f3","e1","e3"], reduction_map_grassmanian, 2)
+calcnullspace("v58", v58_lengths, d3_weights, d3_arrows, d2_weights, d2_arrows,
+	["f1","f3","e1","e3"], reduction_map_grassmanian, 1)
+
+
+print("\nThe maximal singular block without f1")
+reduction_map_max_singular_f1 = {
+	"h1":{"e2⊗f2":-1,"e12⊗f12":1,"e23⊗f23":-1,"e123⊗f123":1},
+	"h2":{"e2⊗f2":2,"e3⊗f3":-1,"e12⊗f12":1,"e23⊗f23":1},
+	"h3":{"e2⊗f2":-1,"e3⊗f3":2,"e12⊗f12":-1,"e23⊗f23":1,"e123⊗f123":1},
+	"f1":{"e2⊗f12":-1,"e23⊗f123":-1},
+	"f2":{"e3⊗f23":-1},
+	"f3":{"e2⊗f23":1,"e12⊗f123":1},
+	"f12":{"e3⊗f123":-1},
+	"f23":{},
+	"f123":{},
+	"e1":{"e12⊗f2":-1,"e123⊗f23":-1},
+}
+calcnullspace("v12", v12_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
+	["f1","e1"], reduction_map_max_singular_f1, 2)
+calcnullspace("v24", v24_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows,
+	["f1","e1"], reduction_map_max_singular_f1, 3)
+calcnullspace("v36", v36_lengths, d3_weights, d3_arrows, d2_weights, d2_arrows,
+	["f1","e1"], reduction_map_max_singular_f1, 3)
+calcnullspace("v48", v48_lengths, d4_weights, d4_arrows, d3_weights, d3_arrows,
+	["f1","e1"], reduction_map_max_singular_f1, 2)
+calcnullspace("v34", v34_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
+	["f1","e1"], reduction_map_max_singular_f1, 3)
+calcnullspace("v46", v46_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows,
+	["f1","e1"], reduction_map_max_singular_f1, 5)
+calcnullspace("v58", v58_lengths, d3_weights, d3_arrows, d2_weights, d2_arrows,
+	["f1","e1"], reduction_map_max_singular_f1, 4)
+calcnullspace("v56", v56_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
+	["f1","e1"], reduction_map_null, -1)
+
+
+print("\nThe maximal singular block without f3")
+reduction_map_max_singular_f3 = {
+	"h1":{"e1⊗f1":2,"e2⊗f2":-1,"e12⊗f12":1,"e23⊗f23":-1,"e123⊗f123":1},
+	"h2":{"e1⊗f1":-1,"e2⊗f2":2,"e12⊗f12":1,"e23⊗f23":1},
+	"h3":{"e2⊗f2":-1,"e12⊗f12":-1,"e23⊗f23":1,"e123⊗f123":1},
+	"f1":{"e2⊗f12":-1,"e23⊗f123":-1},
+	"f2":{"e1⊗f12":1},
+	"f3":{"e2⊗f23":1,"e12⊗f123":1},
+	"f12":{},
+	"f23":{"e1⊗f123":1},
+	"f123":{},
+	"e3":{"e23⊗f2":1,"e123⊗f12":1},
+}
+calcnullspace("v12", v12_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
+	["f3","e3"], reduction_map_max_singular_f3, 2)
+calcnullspace("v24", v24_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows,
+	["f3","e3"], reduction_map_max_singular_f3, 3)
+calcnullspace("v36", v36_lengths, d3_weights, d3_arrows, d2_weights, d2_arrows,
+	["f3","e3"], reduction_map_max_singular_f3, 3)
+calcnullspace("v48", v48_lengths, d4_weights, d4_arrows, d3_weights, d3_arrows,
+	["f3","e3"], reduction_map_max_singular_f3, 2)
+calcnullspace("v34", v34_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
+	["f3","e3"], reduction_map_max_singular_f3, 3)
+calcnullspace("v46", v46_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows,
+	["f3","e3"], reduction_map_max_singular_f3, 5)
+calcnullspace("v58", v58_lengths, d3_weights, d3_arrows, d2_weights, d2_arrows,
+	["f3","e3"], reduction_map_max_singular_f3, 4)
+calcnullspace("v56", v56_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
+	["f3","e3"], reduction_map_null, -1)
+
+
+print("\nThe maximal singular block without f2")
+reduction_map_max_singular_f2 = {
+	"h1":{"e1⊗f1":2,"e12⊗f12":1,"e23⊗f23":-1,"e123⊗f123":1},
+	"h2":{"e1⊗f1":-1,"e3⊗f3":-1,"e12⊗f12":1,"e23⊗f23":1},
+	"h3":{"e3⊗f3":2,"e12⊗f12":-1,"e23⊗f23":1,"e123⊗f123":1},
+	"f1":{"e23⊗f123":-1},
+	"f2":{"e1⊗f12":1,"e3⊗f23":-1},
+	"f3":{"e12⊗f123":1},
+	"f12":{"e3⊗f123":-1},
+	"f23":{"e1⊗f123":1},
+	"f123":{},
+	"e2":{"e12⊗f1":1,"e23⊗f3":-1},
+}
+calcnullspace("v12", v12_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
+	["f2","e2"], reduction_map_max_singular_f2, 2)
+calcnullspace("v24", v24_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows,
+	["f2","e2"], reduction_map_max_singular_f2, 3)
+calcnullspace("v36", v36_lengths, d3_weights, d3_arrows, d2_weights, d2_arrows,
+	["f2","e2"], reduction_map_max_singular_f2, 3)
+calcnullspace("v48", v48_lengths, d4_weights, d4_arrows, d3_weights, d3_arrows,
+	["f2","e2"], reduction_map_max_singular_f2, 2)
+calcnullspace("v34", v34_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
+	["f2","e2"], reduction_map_max_singular_f2, 3)
+calcnullspace("v46", v46_lengths, d2_weights, d2_arrows, d1_weights, d1_arrows,
+	["f2","e2"], reduction_map_max_singular_f2, 5)
+calcnullspace("v58", v58_lengths, d3_weights, d3_arrows, d2_weights, d2_arrows,
+	["f2","e2"], reduction_map_max_singular_f2, 4)
+calcnullspace("v56", v56_lengths, d1_weights, d1_arrows, d0_weights, d0_arrows,
+	["f2","e2"], reduction_map_null, -1)
+
 
